@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NagarSeva — AI Analytics</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    .prediction-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem;border-left:4px solid}
+    .prediction-card.high{border-left-color:#e53935}
+    .prediction-card.medium{border-left-color:#f57c00}
+    .prediction-card.low{border-left-color:#2e7d32}
+    .prediction-title{font-weight:700;font-size:15px;color:var(--primary-dark);margin-bottom:6px}
+    .prediction-text{font-size:13px;color:var(--text-muted);margin-bottom:8px;line-height:1.6}
+    .prediction-action{font-size:13px;color:#0288d1;font-weight:500}
+    .hotspot-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+    .hotspot-item:last-child{border:none}
+    .hotspot-bar{height:6px;background:var(--border);border-radius:3px;flex:1;margin:0 12px;overflow:hidden}
+    .hotspot-fill{height:100%;background:#0a3d22;border-radius:3px}
+    .stat-highlight{background:linear-gradient(135deg,#0a3d22,#1a6b3c);color:#fff;border-radius:var(--radius);padding:1.5rem;text-align:center}
+    .stat-highlight .num{font-size:2.5rem;font-weight:700;font-family:'Bebas Neue',sans-serif}
+    .stat-highlight .lbl{font-size:12px;opacity:0.8;text-transform:uppercase;letter-spacing:0.08em;margin-top:4px}
+    .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem}
+    .chart-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+    .chart-title{font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:1rem}
+    @media(max-width:768px){.charts-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a class="logo" href="/">Nagar<span>Seva</span></a>
+  <div class="nav-links">
+    <a href="/admin-dashboard.html" style="color:rgba(255,255,255,0.7);font-size:14px">← Dashboard</a>
+    <span class="nav-user" id="nav-user"></span>
+    <button onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">🤖 AI Predictive Analytics</h2>
+      <p class="page-subtitle">Gemini AI powered predictions and insights</p>
+    </div>
+    <button class="btn btn-primary" onclick="loadAnalytics()">↻ Refresh</button>
+  </div>
+
+  <div id="alert-box"></div>
+  <div id="loading-state" class="loading"><div class="spinner"></div> AI analyzing data...</div>
+
+  <div id="analytics-content" class="hidden">
+    <!-- Key Stats -->
+    <div class="stats-grid" style="margin-bottom:1.5rem">
+      <div class="stat-highlight">
+        <div class="num" id="a-total">0</div>
+        <div class="lbl">Total Complaints</div>
+      </div>
+      <div class="stat-highlight" style="background:linear-gradient(135deg,#0277bd,#0288d1)">
+        <div class="num" id="a-rate">0%</div>
+        <div class="lbl">Resolution Rate</div>
+      </div>
+      <div class="stat-highlight" style="background:linear-gradient(135deg,#e65100,#f57c00)">
+        <div class="num" id="a-peak">—</div>
+        <div class="lbl">Peak Day</div>
+      </div>
+      <div class="stat-highlight" style="background:linear-gradient(135deg,#4a148c,#7b1fa2)">
+        <div class="num" id="a-categories">0</div>
+        <div class="lbl">Problem Types</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Category Distribution</div>
+        <div style="position:relative;height:220px"><canvas id="catChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Monthly Trend</div>
+        <div style="position:relative;height:220px"><canvas id="trendChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Hotspots -->
+    <div class="card" style="margin-bottom:1.25rem">
+      <div class="card-header">
+        <span class="card-title">🔥 Problem Hotspots</span>
+        <span style="font-size:13px;color:var(--text-muted)">Top areas by complaints</span>
+      </div>
+      <div id="hotspots-list"></div>
+    </div>
+
+    <!-- AI Predictions -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🤖 AI Predictions & Recommendations</span>
+        <span style="background:#e8f5e9;color:#2e7d32;font-size:12px;padding:3px 10px;border-radius:100px;font-weight:600">Gemini Powered</span>
+      </div>
+      <div id="predictions-list"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/main.js"></script>
+<script>
+  redirectIfNotLoggedIn('admin');
+  setupNavUser();
+  let charts = {};
+
+  async function loadAnalytics() {
+    document.getElementById('loading-state').classList.remove('hidden');
+    document.getElementById('analytics-content').classList.add('hidden');
+    try {
+      const data = await apiFetch('/ai/predictions');
+      renderAnalytics(data);
+    } catch (err) {
+      showAlert('alert-box', err.message, 'error');
+      document.getElementById('loading-state').classList.add('hidden');
+    }
+  }
+
+  function renderAnalytics(data) {
+    document.getElementById('loading-state').classList.add('hidden');
+    document.getElementById('analytics-content').classList.remove('hidden');
+
+    // Stats
+    document.getElementById('a-total').textContent = data.stats.totalComplaints;
+    document.getElementById('a-rate').textContent = data.stats.resolutionRate + '%';
+    document.getElementById('a-peak').textContent = data.stats.peakDay;
+    document.getElementById('a-categories').textContent = data.topCategories.length;
+
+    // Destroy old charts
+    Object.values(charts).forEach(c => c.destroy());
+    charts = {};
+
+    // Category Chart
+    charts.cat = new Chart(document.getElementById('catChart'), {
+      type: 'doughnut',
+      data: {
+        labels: data.topCategories.map(c => c.category.charAt(0).toUpperCase() + c.category.slice(1)),
+        datasets: [{ data: data.topCategories.map(c => c.count), backgroundColor: ['#0a3d22','#e53935','#f57c00','#0288d1','#f9a825','#7b1fa2','#37474f'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+    });
+
+    // Trend Chart
+    const months = Object.keys(data.monthlyTrend).slice(-6);
+    charts.trend = new Chart(document.getElementById('trendChart'), {
+      type: 'line',
+      data: {
+        labels: months,
+        datasets: [{ label: 'Complaints', data: months.map(m => data.monthlyTrend[m]), borderColor: '#0a3d22', backgroundColor: 'rgba(10,61,34,0.1)', fill: true, tension: 0.4, pointBackgroundColor: '#0a3d22' }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+
+    // Hotspots
+    const maxComplaints = data.hotspots[0]?.totalComplaints || 1;
+    document.getElementById('hotspots-list').innerHTML = data.hotspots.length
+      ? data.hotspots.map((h, i) => `
+        <div class="hotspot-item">
+          <div style="min-width:140px">
+            <div style="font-size:14px;font-weight:600;color:var(--text)">${h.area}</div>
+            <div style="font-size:12px;color:var(--text-muted);text-transform:capitalize">${h.topCategory} most common</div>
+          </div>
+          <div class="hotspot-bar"><div class="hotspot-fill" style="width:${Math.round(h.totalComplaints/maxComplaints*100)}%"></div></div>
+          <div style="font-size:13px;font-weight:700;color:var(--primary-dark);min-width:50px;text-align:right">${h.totalComplaints} complaints</div>
+        </div>`).join('')
+      : '<div class="empty-state" style="padding:1.5rem"><p>Not enough data for hotspots</p></div>';
+
+    // AI Predictions
+    document.getElementById('predictions-list').innerHTML = data.aiPredictions.length
+      ? data.aiPredictions.map(p => `
+        <div class="prediction-card ${p.priority}">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:1.1rem">${p.priority==='high'?'🔴':p.priority==='medium'?'🟡':'🟢'}</span>
+            <div class="prediction-title">${p.title}</div>
+            <span style="margin-left:auto;background:${p.priority==='high'?'#fde8e8':p.priority==='medium'?'#fff3e0':'#e8f5e9'};color:${p.priority==='high'?'#c62828':p.priority==='medium'?'#e65100':'#2e7d32'};padding:2px 10px;border-radius:100px;font-size:11px;font-weight:700;text-transform:uppercase">${p.priority}</span>
+          </div>
+          <p class="prediction-text">📊 ${p.prediction}</p>
+          <p class="prediction-action">✅ Action: ${p.action}</p>
+        </div>`).join('')
+      : '<div class="empty-state" style="padding:1.5rem"><p>More data needed for AI predictions</p></div>';
+  }
+
+  loadAnalytics();
+</script>
+</body>
+</html>

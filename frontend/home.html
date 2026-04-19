@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NagarSeva — AI Municipal Complaint System</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#050f0a;color:#fff;overflow-x:hidden}
+:root{--g:#00e676;--g2:#00c853;--dark:#050f0a;--card:#0d1f14;--border:rgba(0,230,118,0.15)}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:18px 48px;display:flex;align-items:center;justify-content:space-between;background:rgba(5,15,10,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.1em;color:#fff;text-decoration:none}.logo span{color:var(--g)}
+.nav-right{display:flex;align-items:center;gap:2rem}
+.nav-right a{color:rgba(255,255,255,0.5);font-size:14px;text-decoration:none;transition:color 0.2s}
+.nav-right a:hover{color:#fff}
+.nav-btn{background:var(--g) !important;color:#000 !important;padding:9px 22px;border-radius:100px;font-weight:700;font-size:13px !important}
+.hero{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;align-items:center;padding:100px 48px 60px;gap:3rem;position:relative;overflow:hidden}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 70% 50%,rgba(0,230,118,0.05) 0%,transparent 70%);pointer-events:none}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,230,118,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,230,118,0.025) 1px,transparent 1px);background-size:60px 60px;pointer-events:none}
+.hero-content{position:relative;z-index:2}
+.hero-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.2);padding:7px 16px;border-radius:100px;font-size:12px;color:var(--g);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:2rem}
+.pulse{width:7px;height:7px;background:var(--g);border-radius:50%;animation:pulseAnim 1.5s infinite;flex-shrink:0}
+@keyframes pulseAnim{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,230,118,0.5)}50%{opacity:0.7;box-shadow:0 0 0 8px rgba(0,230,118,0)}}
+.hero-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(4.5rem,7vw,7rem);line-height:0.95;letter-spacing:0.02em;margin-bottom:1.5rem}
+.hero-title .green{color:var(--g)}
+.hero-title .outline{-webkit-text-stroke:2px rgba(255,255,255,0.2);color:transparent}
+.hero-desc{font-size:1rem;color:rgba(255,255,255,0.45);line-height:1.8;max-width:480px;margin-bottom:2.5rem;font-weight:300}
+.hero-actions{display:flex;gap:1rem;flex-wrap:wrap}
+.btn-primary{background:var(--g);color:#000;padding:14px 30px;border-radius:100px;font-weight:700;font-size:14px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:all 0.2s;box-shadow:0 0 30px rgba(0,230,118,0.2)}
+.btn-primary:hover{background:var(--g2);transform:translateY(-2px);box-shadow:0 0 50px rgba(0,230,118,0.35)}
+.btn-outline{background:transparent;color:#fff;padding:14px 28px;border-radius:100px;font-weight:500;font-size:14px;text-decoration:none;border:1px solid rgba(255,255,255,0.12);transition:all 0.2s}
+.btn-outline:hover{border-color:rgba(0,230,118,0.4);color:var(--g)}
+.hero-visual{position:relative;z-index:2}
+.dashboard-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:1.5rem;box-shadow:0 40px 80px rgba(0,0,0,0.6)}
+.dc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
+.dc-title{font-size:14px;font-weight:600;color:rgba(255,255,255,0.8)}
+.live-pill{background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.2);color:var(--g);font-size:11px;font-weight:600;padding:4px 12px;border-radius:100px;display:flex;align-items:center;gap:5px}
+.c-item{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05)}
+.c-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0}
+.c-info{flex:1;min-width:0}
+.c-name{font-size:12px;font-weight:500;color:rgba(255,255,255,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-loc{font-size:11px;color:rgba(255,255,255,0.3);margin-top:2px}
+.pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:100px;text-transform:uppercase;letter-spacing:0.04em;flex-shrink:0}
+.pill-c{background:rgba(239,68,68,0.15);color:#f87171}
+.pill-h{background:rgba(251,146,60,0.15);color:#fb923c}
+.pill-m{background:rgba(0,230,118,0.12);color:var(--g)}
+.ai-box{margin-top:12px;background:rgba(0,230,118,0.05);border:1px solid rgba(0,230,118,0.15);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:center}
+.ai-icon-box{width:32px;height:32px;background:var(--g);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;color:#000;font-weight:700}
+.ai-txt{font-size:11px;color:rgba(255,255,255,0.45)}
+.ai-txt strong{display:block;font-size:12px;color:var(--g);margin-bottom:2px}
+.stats-bar{background:var(--card);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:2rem 48px;display:flex;gap:4rem;justify-content:center}
+.stat{text-align:center}
+.stat-n{font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:var(--g);letter-spacing:0.05em;line-height:1}
+.stat-l{font-size:11px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px}
+.section{padding:6rem 48px}
+.sec-tag{font-size:11px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--g);margin-bottom:0.75rem}
+.sec-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.5rem,4vw,4.5rem);letter-spacing:0.03em;line-height:1;margin-bottom:1rem}
+.sec-desc{color:rgba(255,255,255,0.4);font-size:0.95rem;max-width:500px;line-height:1.75;font-weight:300}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:3rem;background:rgba(0,230,118,0.08);border-radius:16px;overflow:hidden}
+.step{background:var(--card);padding:2rem 1.5rem;transition:background 0.2s}
+.step:hover{background:#0e1f15}
+.step-num{font-family:'Bebas Neue',sans-serif;font-size:3.5rem;color:rgba(0,230,118,0.1);letter-spacing:0.05em;line-height:1;margin-bottom:1rem}
+.step-icon{font-size:1.75rem;margin-bottom:1rem;display:block}
+.step-title{font-size:14px;font-weight:600;color:#fff;margin-bottom:0.5rem}
+.step-desc{font-size:12px;color:rgba(255,255,255,0.35);line-height:1.65}
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:3rem;background:rgba(0,230,118,0.08);border-radius:16px;overflow:hidden}
+.feat{background:var(--card);padding:2rem;transition:background 0.2s;position:relative;overflow:hidden}
+.feat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--g),transparent);opacity:0;transition:opacity 0.3s}
+.feat:hover{background:#0e1f15}
+.feat:hover::before{opacity:1}
+.feat-icon{font-size:2rem;margin-bottom:1rem;display:block}
+.feat-title{font-size:15px;font-weight:600;color:#fff;margin-bottom:0.5rem}
+.feat-desc{font-size:12px;color:rgba(255,255,255,0.38);line-height:1.65}
+.roles{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:3rem}
+.role{border-radius:16px;padding:2rem;border:1px solid;transition:transform 0.2s,box-shadow 0.2s}
+.role:hover{transform:translateY(-5px);box-shadow:0 20px 50px rgba(0,0,0,0.4)}
+.role-c{background:rgba(0,230,118,0.03);border-color:rgba(0,230,118,0.12)}
+.role-a{background:rgba(251,191,36,0.03);border-color:rgba(251,191,36,0.12)}
+.role-w{background:rgba(96,165,250,0.03);border-color:rgba(96,165,250,0.12)}
+.role-emoji{font-size:2.5rem;margin-bottom:1rem;display:block}
+.role-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:0.5rem}
+.role-c .role-title{color:var(--g)}
+.role-a .role-title{color:#fbbf24}
+.role-w .role-title{color:#60a5fa}
+.role-desc{font-size:13px;color:rgba(255,255,255,0.4);line-height:1.65;margin-bottom:1.25rem}
+.role-list{list-style:none}
+.role-list li{font-size:12px;color:rgba(255,255,255,0.45);padding:5px 0;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.role-list li:last-child{border:none}
+.role-c .role-list li::before{content:'›';color:var(--g);font-size:1.2em;font-weight:700}
+.role-a .role-list li::before{content:'›';color:#fbbf24;font-size:1.2em;font-weight:700}
+.role-w .role-list li::before{content:'›';color:#60a5fa;font-size:1.2em;font-weight:700}
+.role-btn{display:inline-block;margin-top:1.5rem;padding:10px 22px;border-radius:100px;font-size:12px;font-weight:700;text-decoration:none;letter-spacing:0.05em;text-transform:uppercase;transition:all 0.2s}
+.role-c .role-btn{background:rgba(0,230,118,0.1);color:var(--g);border:1px solid rgba(0,230,118,0.2)}
+.role-c .role-btn:hover{background:var(--g);color:#000}
+.role-a .role-btn{background:rgba(251,191,36,0.1);color:#fbbf24;border:1px solid rgba(251,191,36,0.2)}
+.role-a .role-btn:hover{background:#fbbf24;color:#000}
+.role-w .role-btn{background:rgba(96,165,250,0.1);color:#60a5fa;border:1px solid rgba(96,165,250,0.2)}
+.role-w .role-btn:hover{background:#60a5fa;color:#000}
+.cta{padding:6rem 48px;text-align:center;position:relative;overflow:hidden}
+.cta::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:700px;height:350px;background:radial-gradient(ellipse,rgba(0,230,118,0.07) 0%,transparent 70%);pointer-events:none}
+.cta-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(3.5rem,6vw,6rem);letter-spacing:0.03em;margin-bottom:1rem;position:relative;z-index:1}
+.cta-title span{color:var(--g)}
+.cta-desc{color:rgba(255,255,255,0.38);font-size:1rem;max-width:460px;margin:0 auto 2.5rem;line-height:1.75;font-weight:300;position:relative;z-index:1}
+.cta-btns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;position:relative;z-index:1}
+footer{padding:2rem 48px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.22)}
+.f-logo{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:rgba(255,255,255,0.4);letter-spacing:0.1em}.f-logo span{color:var(--g)}
+.reveal{opacity:0;transform:translateY(24px);transition:opacity 0.6s ease,transform 0.6s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+@media(max-width:1024px){
+  .hero{grid-template-columns:1fr;padding:90px 24px 50px}
+  .hero-visual{display:none}
+  .section{padding:4rem 24px}
+  .steps{grid-template-columns:1fr 1fr}
+  .features-grid{grid-template-columns:1fr 1fr}
+  .roles{grid-template-columns:1fr}
+  .stats-bar{padding:1.5rem 24px;gap:2rem;flex-wrap:wrap;justify-content:center}
+  .cta{padding:4rem 24px}
+  footer{padding:1.5rem 24px;flex-direction:column;gap:8px;text-align:center}
+  nav{padding:16px 24px}
+  .nav-right a:not(.nav-btn){display:none}
+}
+@media(max-width:600px){
+  .steps{grid-template-columns:1fr}
+  .features-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="#">Nagar<span>Seva</span></a>
+  <div class="nav-right">
+    <a href="#how">How It Works</a>
+    <a href="#features">Features</a>
+    <a href="#portals">Portals</a>
+    <a href="http://localhost:5000/index.html" class="nav-btn">Login / Register</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-content">
+    <div class="hero-tag"><div class="pulse"></div>AI-Powered Municipal System</div>
+    <h1 class="hero-title">
+      Apni<br>
+      <span class="green">Shikayat,</span><br>
+      <span class="outline">Seedhi</span><br>
+      Sarkar Tak
+    </h1>
+    <p class="hero-desc"></p><p>Report any municipal issue—garbage, drainage, or roads—along with a photo. Gemini AI will instantly assign a priority and send the right worker.</p>
+    <br>
+    <div class="hero-actions">
+      <a href="/index.html" class="btn-primary">🚀 Register a Complaint</a>
+      <a href="#how" class="btn-outline">How It Works →</a>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="dashboard-card">
+      <div class="dc-header">
+        <span class="dc-title">Live Complaints</span>
+        <div class="live-pill"><div class="pulse"></div>Live</div>
+      </div>
+      <div class="c-item">
+        <div class="c-icon" style="background:rgba(239,68,68,0.1)">🗑️</div>
+        <div class="c-info"><div class="c-name">Garbage has not been collected for 4 days.</div><div class="c-loc">📍 Ward 12, Patna</div></div>
+        <span class="pill pill-h">High</span>
+      </div>
+      <div class="c-item">
+        <div class="c-icon" style="background:rgba(239,68,68,0.1)">🌊</div>
+        <div class="c-info"><div class="c-name">Drain blockage — Water is accumulating.</div><div class="c-loc">📍 Sector 4, Ranchi</div></div>
+        <span class="pill pill-c">Critical</span>
+      </div>
+      <div class="c-item">
+        <div class="c-icon" style="background:rgba(0,230,118,0.08)">🛣️</div>
+        <div class="c-info"><div class="c-name">Road damage — Large pothole.</div><div class="c-loc">📍 MG Road, Bhagalpur</div></div>
+        <span class="pill pill-m">Medium</span>
+      </div>
+      <div class="ai-box">
+        <div class="ai-icon-box">🤖</div>
+        <div class="ai-txt"><strong>Gemini AI has classified it.</strong>Drain blockage → Critical priority assigned</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-n">AI</div><div class="stat-l">Auto Priority</div></div>
+  <div class="stat"><div class="stat-n">3</div><div class="stat-l">User Roles</div></div>
+  <div class="stat"><div class="stat-n">5</div><div class="stat-l">Photo Upload</div></div>
+  <div class="stat"><div class="stat-n">24/7</div><div class="stat-l">Available</div></div>
+  <div class="stat"><div class="stat-n">JWT</div><div class="stat-l">Secure Login</div></div>
+  <div class="stat"><div class="stat-n">FREE</div><div class="stat-l">Gemini API</div></div>
+</div>
+
+<section class="section" id="how">
+  <div class="reveal">
+    <div class="sec-tag">Process</div>
+    <h2 class="sec-title">In 4 Steps<br>The work gets done.</h2>
+    <p class="sec-desc">Submit your complaint — the rest is handled by AI and admin.</p>
+  </div>
+  <div class="steps reveal">
+    <div class="step">
+      <div class="step-num">01</div>
+      <span class="step-icon">📝</span>
+      <div class="step-title">Register a Complaint</div>
+      <div class="step-desc">Provide a title, category, location, and photo of the issue.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <span class="step-icon">🤖</span>
+      <div class="step-title">AI assigns priority.</div>
+      <div class="step-desc">Gemini AI analyzes the complaint and determines whether it is Critical, High, Medium, or Low priority.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <span class="step-icon">👨‍💼</span>
+      <div class="step-title">Admin Assigns Worker</div>
+      <div class="step-desc">Admin dashboard shows all complaints sorted by priority.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <span class="step-icon">✅</span>
+      <div class="step-title">The problem gets solved.</div>
+      <div class="step-desc">The field worker completes the task and updates the status. You can track it in real time.</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features" style="padding-top:0">
+  <div class="reveal">
+    <div class="sec-tag">Features</div>
+    <h2 class="sec-title">Why NagarSeva?</h2>
+    <p class="sec-desc">A complete system designed for citizens, administrators, and workers.</p>
+  </div>
+  <div class="features-grid reveal">
+    <div class="feat"><span class="feat-icon">🤖</span><div class="feat-title">Gemini AI Classification</div><div class="feat-desc">Google’s free Gemini AI analyzes every complaint and automatically determines its priority—whether it’s a health hazard, flooding, or a minor issue.</div></div>
+    <div class="feat"><span class="feat-icon">📷</span><div class="feat-title">Photo Upload Support</div><div class="feat-desc">Attach up to 5 photos of the problem—clearer evidence ensures faster resolution.</div></div>
+    <div class="feat"><span class="feat-icon">📊</span><div class="feat-title">Real-time Dashboard</div><div class="feat-desc">The admin can view all complaints in one place—sorted with filters for status, priority, and category.</div></div>
+    <div class="feat"><span class="feat-icon">👷</span><div class="feat-title">Worker Assignment</div><div class="feat-desc">The admin directly assigns tasks to the field worker. The worker sees their tasks sorted by AI urgency score.</div></div>
+    <div class="feat"><span class="feat-icon">🔔</span><div class="feat-title">Status Tracking</div><div class="feat-desc">Citizens can track the status of their complaints—at every step from Pending to Resolved.</div></div>
+    <div class="feat"><span class="feat-icon">🔐</span><div class="feat-title">Secure JWT Login</div><div class="feat-desc">Separate secure portals for citizens, administrators, and workers with JWT token authentication.</div></div>
+  </div>
+</section>
+
+<section class="section" id="portals" style="padding-top:0">
+  <div class="reveal">
+    <div class="sec-tag">Portals</div>
+    <h2 class="sec-title">Who does what<br>Who can do what?</h2>
+  </div>
+  <div class="roles reveal">
+    <div class="role role-c">
+      <span class="role-emoji">👤</span>
+      <div class="role-title">Citizen / Nagarik</div>
+      <div class="role-desc">Report your municipal issues and track them in real time.</div>
+      <ul class="role-list">
+        <li>Submit a complaint with a photo.</li>
+        <li>View AI priority result instantly.</li>
+        <li>Track status in real-time.</li>
+        <li>View information about the assigned worker.</li>
+      </ul>
+      <a href="/index.html" class="role-btn">Register Karo →</a>
+    </div>
+    <div class="role role-a">
+      <span class="role-emoji">👨‍💼</span>
+      <div class="role-title">Admin</div>
+      <div class="role-desc">Manage all complaints and assign field workers.</div>
+      <ul class="role-list">
+        <li>All complaints AI priority-sorted</li>
+        <li>Assign to field workers.</li>
+        <li>Update the status.</li>
+        <li>View complete dashboard statistics.</li>
+      </ul>
+      <a href="/index.html" class="role-btn">Admin Login →</a>
+    </div>
+    <div class="role role-w">
+      <span class="role-emoji">👷</span>
+      <div class="role-title">Field Worker</div>
+      <div class="role-desc">View your assigned tasks and complete them based on urgency.</div>
+      <ul class="role-list">
+        <li>View assigned complaints</li>
+        <li>Tasks sorted by AI urgency score</li>
+        <li>Status: In Progress / Resolved</li>
+        <li>Access to citizen information and location</li>
+      </ul>
+      <a href="/index.html" class="role-btn">Worker Login →</a>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="reveal">
+    <h2 class="cta-title">Now <span>Report</span><br>proceed</h2>
+    <p class="cta-desc">Free registration. Direct complaints. AI-powered priority. Fast resolution. All in one place.</p>
+    <div class="cta-btns">
+      <a href="/index.html" class="btn-primary" style="font-size:15px;padding:16px 38px">🚀 Submit Complaint</a>
+      <a href="/index.html" class="btn-outline" style="font-size:15px;padding:16px 28px">Admin Login →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="f-logo">Nagar<span>Seva</span></div>
+  <div>© 2026 NagarSeva — AI-Based Municipal Complaint & Waste Management System</div>
+  <div>Node.js · MongoDB · Google Gemini AI</div>
+</footer>
+
+<script>
+const obs = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')});
+},{threshold:0.08});
+document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+window.addEventListener('scroll',()=>{
+  document.querySelector('nav').style.boxShadow=window.scrollY>50?'0 4px 30px rgba(0,0,0,0.3)':'none';
+});
+</script>
+</body>
+</html>
