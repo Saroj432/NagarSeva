@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NagarSeva — Admin Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    .tab-bar{display:flex;gap:4px;background:var(--surface2);padding:4px;border-radius:100px;margin-bottom:1.5rem;width:fit-content}
+    .tab-btn{padding:8px 20px;border-radius:100px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-muted);font-family:inherit;transition:all 0.2s}
+    .tab-btn.active{background:var(--primary-dark,#0a3d22);color:#fff}
+    .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem}
+    .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+    .chart-title{font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:1rem}
+    #admin-map{height:400px;border-radius:var(--radius);border:1px solid var(--border)}
+    .map-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:12px}
+    .legend-item{display:flex;align-items:center;gap:5px;color:var(--text-muted)}
+    .legend-dot{width:12px;height:12px;border-radius:50%}
+    .rating-stars{color:#f59e0b;font-size:1.1rem}
+    @media(max-width:768px){.charts-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a class="logo" href="/">Nagar<span>Seva</span></a>
+  <div class="nav-links">
+    <span class="nav-user" id="nav-user"></span>
+    <button onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Admin Dashboard</h2>
+      <p class="page-subtitle">“Manage complaints, view analytics”</p>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="loadData()">↻ Refresh</button>
+  </div>
+
+  <div id="alert-box"></div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-green">📊</div>
+      <div class="stat-info"><div class="stat-number" id="s-total">0</div><div class="stat-label">Total</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-purple">⏳</div>
+      <div class="stat-info"><div class="stat-number" id="s-pending">0</div><div class="stat-label">Pending</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-red">🔴</div>
+      <div class="stat-info"><div class="stat-number" id="s-critical">0</div><div class="stat-label">Critical</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-green">✅</div>
+      <div class="stat-info"><div class="stat-number" id="s-resolved">0</div><div class="stat-label">Resolved</div></div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('complaints')">📋 Complaints</button>
+    <button class="tab-btn" onclick="switchTab('analytics')">📊 Analytics</button>
+    <button class="tab-btn" onclick="switchTab('map')">🗺️ Map</button>
+    <button class="tab-btn" onclick="switchTab('ratings')">⭐ Ratings</button>
+  </div>
+
+  <!-- COMPLAINTS TAB -->
+  <div id="tab-complaints">
+    <div class="filter-bar">
+      <select id="f-status" onchange="applyFilters()">
+        <option value="">All Status</option>
+        <option value="pending">Pending</option>
+        <option value="assigned">Assigned</option>
+        <option value="in-progress">In Progress</option>
+        <option value="resolved">Resolved</option>
+      </select>
+      <select id="f-priority" onchange="applyFilters()">
+        <option value="">All Priority</option>
+        <option value="critical">🔴 Critical</option>
+        <option value="high">🟠 High</option>
+        <option value="medium">🟡 Medium</option>
+        <option value="low">🟢 Low</option>
+      </select>
+      <select id="f-category" onchange="applyFilters()">
+        <option value="">All Category</option>
+        <option value="garbage">🗑️ Garbage</option>
+        <option value="drainage">🌊 Drainage</option>
+        <option value="road">🛣️ Road</option>
+        <option value="water">💧 Water</option>
+        <option value="electricity">⚡ Electricity</option>
+        <option value="sewage">🚽 Sewage</option>
+      </select>
+      <input type="text" id="f-search" placeholder="🔍 Search..." oninput="applyFilters()" style="flex:1;border-radius:100px">
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div id="complaints-container"><div class="loading"><div class="spinner"></div> Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS TAB -->
+  <div id="tab-analytics" class="hidden">
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Complaints by Category</div>
+        <div style="position:relative;height:240px"><canvas id="categoryChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Complaints by Priority</div>
+        <div style="position:relative;height:240px"><canvas id="priorityChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Status Overview</div>
+        <div style="position:relative;height:240px"><canvas id="statusChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Monthly Complaints Trend</div>
+        <div style="position:relative;height:240px"><canvas id="trendChart"></canvas></div>
+      </div>
+    </div>
+    <div class="charts-grid" style="grid-template-columns:1fr">
+      <div class="chart-card">
+        <div class="chart-title">Worker Performance</div>
+        <div style="position:relative;height:200px"><canvas id="workerChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP TAB -->
+  <div id="tab-map" class="hidden">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🗺️ Complaints Map</span>
+        <span style="font-size:13px;color:var(--text-muted)" id="map-count"></span>
+      </div>
+      <div id="admin-map"></div>
+      <div class="map-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#e53935"></div> Critical</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f57c00"></div> High</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f9a825"></div> Medium</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#2e7d32"></div> Low/Resolved</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RATINGS TAB -->
+  <div id="tab-ratings" class="hidden">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">⭐ Citizen Ratings & Feedback</span>
+        <span id="avg-rating" style="font-size:14px;color:var(--text-muted)"></span>
+      </div>
+      <div id="ratings-container"><div class="loading"><div class="spinner"></div> Loading...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Modal -->
+<div id="assign-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="card-title">👷 Assign Complaint</span>
+      <button class="close-btn" onclick="closeAssignModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="assign-info" style="background:var(--surface2);padding:1rem;border-radius:10px;margin-bottom:1rem;font-size:14px;border:1px solid var(--border)"></div>
+      <div id="modal-alert"></div>
+      <div class="form-group">
+        <label>Field Worker *</label>
+        <select id="worker-select"></select>
+      </div>
+      <div class="form-group">
+        <label>Admin Notes</label>
+        <textarea id="admin-notes" rows="3" placeholder="Instructions for the worker..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAssignModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmAssign()">✅ Assign</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/main.js"></script>
+<script>
+  redirectIfNotLoggedIn('admin');
+  setupNavUser();
+
+  let allComplaints = [], workers = [], currentId = null;
+  let adminMap = null, mapInitialized = false;
+  let charts = {};
+  let activeTab = 'complaints';
+
+  const priorityColors = { critical:'#e53935', high:'#f57c00', medium:'#f9a825', low:'#2e7d32', resolved:'#2e7d32' };
+
+  async function loadData() {
+    try {
+      const [cData, wData, stats] = await Promise.all([
+        apiFetch('/admin/complaints?limit=200'),
+        apiFetch('/admin/workers'),
+        apiFetch('/admin/stats')
+      ]);
+      allComplaints = cData.complaints;
+      workers = wData;
+      document.getElementById('s-total').textContent = stats.total;
+      document.getElementById('s-pending').textContent = stats.pending;
+      document.getElementById('s-critical').textContent = stats.critical;
+      document.getElementById('s-resolved').textContent = stats.resolved;
+      document.getElementById('worker-select').innerHTML = workers.length
+        ? workers.map(w => `<option value="${w._id}">${w.name} — ${w.email}</option>`).join('')
+        : '<option>No workers</option>';
+      applyFilters();
+      renderRatings();
+    } catch (err) { showAlert('alert-box', err.message, 'error'); }
+  }
+
+  function switchTab(tab) {
+    activeTab = tab;
+    ['complaints','analytics','map','ratings'].forEach(t => {
+      document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
+    });
+    document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', ['complaints','analytics','map','ratings'][i] === tab);
+    });
+    if (tab === 'analytics') renderCharts();
+    if (tab === 'map') { setTimeout(() => { initAdminMap(); updateMap(allComplaints); }, 200); }
+    if (tab === 'ratings') renderRatings();
+  }
+
+  // ── CHARTS ──
+  function renderCharts() {
+    const categoryCount = {};
+    const priorityCount = { critical:0, high:0, medium:0, low:0 };
+    const statusCount = { pending:0, assigned:0, 'in-progress':0, resolved:0, rejected:0 };
+    const monthCount = {};
+    const workerCount = {};
+
+    allComplaints.forEach(c => {
+      categoryCount[c.category] = (categoryCount[c.category] || 0) + 1;
+      if (priorityCount[c.priority] !== undefined) priorityCount[c.priority]++;
+      if (statusCount[c.status] !== undefined) statusCount[c.status]++;
+      const month = new Date(c.createdAt).toLocaleDateString('en-IN', { month:'short', year:'2-digit' });
+      monthCount[month] = (monthCount[month] || 0) + 1;
+      if (c.assignedWorker?.name) workerCount[c.assignedWorker.name] = (workerCount[c.assignedWorker.name] || 0) + 1;
+    });
+
+    // Destroy old charts
+    Object.values(charts).forEach(ch => ch.destroy());
+    charts = {};
+
+    // Category Chart
+    charts.category = new Chart(document.getElementById('categoryChart'), {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(categoryCount).map(k => k.charAt(0).toUpperCase() + k.slice(1)),
+        datasets: [{ data: Object.values(categoryCount), backgroundColor: ['#1a6b3c','#e53935','#f57c00','#0288d1','#f9a825','#7b1fa2','#37474f'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+    });
+
+    // Priority Chart
+    charts.priority = new Chart(document.getElementById('priorityChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Critical', 'High', 'Medium', 'Low'],
+        datasets: [{ data: Object.values(priorityCount), backgroundColor: ['#e53935','#f57c00','#f9a825','#2e7d32'], borderRadius: 6 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+
+    // Status Chart
+    charts.status = new Chart(document.getElementById('statusChart'), {
+      type: 'pie',
+      data: {
+        labels: ['Pending', 'Assigned', 'In Progress', 'Resolved', 'Rejected'],
+        datasets: [{ data: Object.values(statusCount), backgroundColor: ['#7b1fa2','#0288d1','#f57c00','#2e7d32','#e53935'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+    });
+
+    // Trend Chart
+    const sortedMonths = Object.keys(monthCount).slice(-6);
+    charts.trend = new Chart(document.getElementById('trendChart'), {
+      type: 'line',
+      data: {
+        labels: sortedMonths,
+        datasets: [{ label: 'Complaints', data: sortedMonths.map(m => monthCount[m]), borderColor: '#1a6b3c', backgroundColor: 'rgba(26,107,60,0.1)', fill: true, tension: 0.4, pointBackgroundColor: '#1a6b3c' }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+
+    // Worker Chart
+    if (Object.keys(workerCount).length) {
+      charts.worker = new Chart(document.getElementById('workerChart'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(workerCount),
+          datasets: [{ label: 'Assigned Tasks', data: Object.values(workerCount), backgroundColor: '#0288d1', borderRadius: 6 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+    } else {
+      document.getElementById('workerChart').parentElement.parentElement.innerHTML = '<div class="chart-title">Worker Performance</div><div class="empty-state" style="padding:1rem"><p>No workers assigned yet.</p></div>';
+    }
+  }
+
+  // ── MAP ──
+  function initAdminMap() {
+    if (mapInitialized) { adminMap.invalidateSize(); return; }
+    adminMap = L.map('admin-map').setView([23.5937, 80.9629], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(adminMap);
+    mapInitialized = true;
+  }
+
+  function updateMap(complaints) {
+    if (!adminMap) return;
+    adminMap.eachLayer(layer => { if (layer instanceof L.Marker) adminMap.removeLayer(layer); });
+    const withCoords = complaints.filter(c => c.location?.coordinates?.lat && c.location?.coordinates?.lng);
+    document.getElementById('map-count').textContent = `${withCoords.length} complaints with location`;
+    if (!withCoords.length) return;
+    withCoords.forEach(c => {
+      const color = c.status === 'resolved' ? '#2e7d32' : (priorityColors[c.priority] || '#666');
+      const emoji = c.priority==='critical'?'🔴':c.priority==='high'?'🟠':c.priority==='medium'?'🟡':'🟢';
+      L.marker([c.location.coordinates.lat, c.location.coordinates.lng], {
+        icon: L.divIcon({ html: `<div style="background:${color};color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:1rem;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${emoji}</div>`, iconSize:[34,34], iconAnchor:[17,34] })
+      }).addTo(adminMap).bindPopup(`
+        <div style="font-family:sans-serif;min-width:200px">
+          <strong>${c.title}</strong><br>
+          <span style="font-size:12px;color:#666">📍 ${c.location.address}</span>
+          <div style="margin:6px 0;display:flex;gap:5px;flex-wrap:wrap">
+            <span style="background:${color};color:#fff;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:700;text-transform:uppercase">${c.priority}</span>
+            <span style="background:#eee;padding:2px 8px;border-radius:100px;font-size:11px">${c.status}</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            ${c.status!=='resolved'?`<button onclick="openAssign('${c._id}')" style="background:#0a3d22;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer">Assign</button>`:''}
+            <a href="https://www.google.com/maps?q=${c.location.coordinates.lat},${c.location.coordinates.lng}" target="_blank" style="background:#0288d1;color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;text-decoration:none">🧭 Navigate</a>
+          </div>
+        </div>`);
+    });
+    const bounds = L.latLngBounds(withCoords.map(c => [c.location.coordinates.lat, c.location.coordinates.lng]));
+    adminMap.fitBounds(bounds, { padding: [40,40] });
+  }
+
+  // ── RATINGS ──
+  function renderRatings() {
+    const rated = allComplaints.filter(c => c.rating);
+    const el = document.getElementById('ratings-container');
+    if (!rated.length) {
+      el.innerHTML = `<div class="empty-state"><div class="icon">⭐</div><p>There are no ratings yet</p></div>`;
+      document.getElementById('avg-rating').textContent = '';
+      return;
+    }
+    const avg = (rated.reduce((s, c) => s + c.rating, 0) / rated.length).toFixed(1);
+    document.getElementById('avg-rating').innerHTML = `Average: <span style="color:#f59e0b;font-weight:700">${avg} ⭐</span> (${rated.length} ratings)`;
+    el.innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>Complaint</th><th>Citizen</th><th>Rating</th><th>Feedback</th><th>Date</th></tr></thead>
+      <tbody>${rated.map(c => `
+        <tr>
+          <td><strong style="font-size:14px">${c.title}</strong></td>
+          <td style="font-size:13px">${c.user?.name || 'N/A'}</td>
+          <td><span class="rating-stars">${'★'.repeat(c.rating)}${'☆'.repeat(5-c.rating)}</span></td>
+          <td style="font-size:13px;color:var(--text-muted)">${c.feedback || '—'}</td>
+          <td style="font-size:13px;color:var(--text-muted)">${formatDate(c.resolvedAt || c.updatedAt)}</td>
+        </tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
+  // ── TABLE ──
+  function applyFilters() {
+    const status = document.getElementById('f-status').value;
+    const priority = document.getElementById('f-priority').value;
+    const category = document.getElementById('f-category').value;
+    const search = document.getElementById('f-search').value.toLowerCase();
+    renderTable(allComplaints.filter(c =>
+      (!status || c.status === status) &&
+      (!priority || c.priority === priority) &&
+      (!category || c.category === category) &&
+      (!search || c.title.toLowerCase().includes(search) || c.location.address.toLowerCase().includes(search))
+    ));
+  }
+
+  function renderTable(complaints) {
+    const el = document.getElementById('complaints-container');
+    if (!complaints.length) {
+      el.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No complaints found.</p></div>`;
+      return;
+    }
+    el.innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>Complaint</th><th>Category</th><th>Priority</th><th>Urgency</th><th>Status</th><th>Citizen</th><th>Worker</th><th>Rating</th><th>Actions</th></tr></thead>
+      <tbody>${complaints.map(c => `
+        <tr>
+          <td style="max-width:180px">
+            <strong style="font-size:14px">${c.title}</strong><br>
+            <small style="color:var(--text-muted)">📍 ${c.location.address.substring(0,30)}...</small><br>
+            ${c.location.coordinates?.lat ? `<a href="https://www.google.com/maps?q=${c.location.coordinates.lat},${c.location.coordinates.lng}" target="_blank" style="font-size:11px;color:var(--primary)">🗺️ Map</a>` : ''}
+          </td>
+          <td style="text-transform:capitalize;font-size:13px">${c.category}</td>
+          <td>${priorityBadge(c.priority)}</td>
+          <td>
+            <div class="urgency-bar">
+              <div class="urgency-track"><div class="urgency-fill" style="width:${(c.aiClassification?.urgencyScore||5)*10}%;background:${priorityColors[c.priority]||'#666'}"></div></div>
+              <span style="font-size:12px;color:var(--text-muted)">${c.aiClassification?.urgencyScore||5}/10</span>
+            </div>
+          </td>
+          <td>${statusBadge(c.status)}</td>
+          <td style="font-size:13px">${c.user?.name||'N/A'}<br><small style="color:var(--text-muted)">${c.user?.phone||''}</small></td>
+          <td style="font-size:13px">${c.assignedWorker?`<span style="color:var(--primary-dark);font-weight:600">${c.assignedWorker.name}</span>`:'<span style="color:var(--text-muted)">—</span>'}</td>
+          <td>${c.rating ? `<span class="rating-stars">${'★'.repeat(c.rating)}</span>` : '<span style="color:var(--text-muted);font-size:12px">—</span>'}</td>
+          <td>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">
+              ${c.status!=='resolved'&&c.status!=='rejected'?`<button class="btn btn-primary btn-sm" onclick="openAssign('${c._id}')">Assign</button>`:''}
+              ${c.status!=='resolved'?`<button class="btn btn-success btn-sm" onclick="markResolved('${c._id}')">✓</button>`:''}
+            </div>
+          </td>
+        </tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
+  function openAssign(id) {
+    currentId = id;
+    const c = allComplaints.find(x => x._id === id);
+    if (!c) return;
+    document.getElementById('assign-info').innerHTML = `<strong>${c.title}</strong><br><span style="color:var(--text-muted)">📍 ${c.location.address}</span><br><div style="margin-top:6px">${priorityBadge(c.priority)} ${statusBadge(c.status)}</div>`;
+    document.getElementById('admin-notes').value = '';
+    document.getElementById('modal-alert').innerHTML = '';
+    document.getElementById('assign-modal').classList.remove('hidden');
+  }
+
+  function closeAssignModal() { document.getElementById('assign-modal').classList.add('hidden'); currentId = null; }
+
+  async function confirmAssign() {
+    const workerId = document.getElementById('worker-select').value;
+    if (!workerId) return;
+    try {
+      await apiFetch(`/admin/complaints/${currentId}/assign`, { method:'PUT', body: JSON.stringify({ workerId, adminNotes: document.getElementById('admin-notes').value }) });
+      showAlert('alert-box', '✅ Assigned!', 'success');
+      closeAssignModal();
+      loadData();
+    } catch (err) { document.getElementById('modal-alert').innerHTML = `<div class="alert alert-error">${err.message}</div>`; }
+  }
+
+  async function markResolved(id) {
+    if (!confirm('Mark as resolved?')) return;
+    try {
+      await apiFetch(`/admin/complaints/${id}/status`, { method:'PUT', body: JSON.stringify({ status:'resolved' }) });
+      showAlert('alert-box', '✅ Resolved!', 'success');
+      loadData();
+    } catch (err) { showAlert('alert-box', err.message, 'error'); }
+  }
+
+  loadData();
+</script>
+</body>
+</html>

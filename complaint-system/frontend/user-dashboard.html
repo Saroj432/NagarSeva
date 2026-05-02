@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Complaints — NagarSeva</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    #complaint-map{height:220px;border-radius:10px;border:1.5px solid var(--border);margin-top:8px;z-index:1}
+    .map-search{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+    .map-search input{flex:1;min-width:150px}
+    .locate-btn{background:#0a3d22;color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;white-space:nowrap}
+    .locate-btn:hover{background:#1a6b3c}
+    .map-coords{font-size:12px;color:var(--text-muted);margin-top:6px;padding:6px 10px;background:var(--surface2);border-radius:6px;display:none}
+    .addr-results{position:absolute;background:#fff;border:1px solid var(--border);border-radius:8px;z-index:9999;max-height:200px;overflow-y:auto;width:100%;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
+    .addr-item{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0f0}
+    .addr-item:hover{background:#f5f5f5}
+    .addr-wrap{position:relative;flex:1}
+    .timeline{display:flex;align-items:center;justify-content:space-between;margin:0.75rem 0;position:relative}
+    .timeline::before{content:'';position:absolute;top:16px;left:0;right:0;height:2px;background:var(--border);z-index:0}
+    .tl-step{display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;z-index:1;flex:1}
+    .tl-dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.85rem;border:2px solid var(--border);background:#fff}
+    .tl-dot.done{background:#0a3d22;border-color:#0a3d22;color:#fff}
+    .tl-dot.active{border-color:#0a3d22;color:#0a3d22}
+    .tl-label{font-size:10px;color:var(--text-muted);text-align:center}
+    .tl-label.done{color:#0a3d22;font-weight:700}
+    .stars{display:flex;gap:6px;font-size:1.8rem;cursor:pointer;justify-content:center;margin:1rem 0}
+    .star{color:#ddd;transition:color 0.15s}
+    .star.active,.star:hover{color:#f59e0b}
+    .sfbar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center}
+    .sfbar input{flex:1;min-width:180px;padding:9px 14px;border:1.5px solid var(--border);border-radius:100px;font-family:inherit;font-size:13px;outline:none}
+    .sfbar input:focus{border-color:#0a3d22}
+    .sfbar select{padding:9px 14px;border:1.5px solid var(--border);border-radius:100px;font-family:inherit;font-size:13px;background:var(--surface);outline:none}
+    .ai-toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+    .ai-tool-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border:1.5px solid #a5d6a7;background:#f0fdf4;color:#2e7d32;border-radius:100px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;transition:all 0.2s;white-space:nowrap}
+    .ai-tool-btn:hover{background:#0a3d22;color:#fff;border-color:#0a3d22}
+    .ai-tool-btn:disabled{opacity:0.5;cursor:not-allowed}
+    .ai-suggestions{background:#f0fdf4;border:1px solid #a5d6a7;border-radius:8px;padding:10px;margin-top:6px;font-size:13px}
+    .ai-suggestion-item{padding:6px 10px;cursor:pointer;border-radius:6px;transition:background 0.15s}
+    .ai-suggestion-item:hover{background:#dcfce7}
+    .duplicate-warning{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 14px;margin-top:6px;font-size:13px;color:#856404;display:none}
+    .voice-btn{background:#0a3d22;color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;white-space:nowrap;transition:all 0.2s}
+    .voice-btn.recording{background:#e53935;animation:pulse-rec 1s infinite}
+    @keyframes pulse-rec{0%,100%{opacity:1}50%{opacity:0.7}}
+    .img-analysis-result{background:#e3f2fd;border:1px solid #90caf9;border-radius:8px;padding:12px;margin-top:8px;font-size:13px;display:none}
+    .improve-result{background:#f3e5f5;border:1px solid #ce93d8;border-radius:8px;padding:12px;margin-top:6px;font-size:13px;display:none}
+    .photo-upload-zone{border:2.5px dashed #0a3d22;border-radius:12px;padding:24px;text-align:center;cursor:pointer;background:#f0fdf4;transition:all 0.2s}
+    .photo-upload-zone:hover{background:#dcfce7}
+    .photo-upload-zone.has-photo{border-style:solid;background:#e8f5e9}
+    .photo-required-badge{display:inline-block;background:#e53935;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:100px;margin-left:6px}
+    .gps-status{display:none;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;font-size:13px;margin-top:8px;font-weight:600}
+    .gps-status.detecting{display:flex;background:#fff3e0;border:1px solid #ffb74d;color:#e65100}
+    .gps-status.success{display:flex;background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32}
+    .gps-status.error{display:flex;background:#ffebee;border:1px solid #ef9a9a;color:#c62828}
+    .gps-spinner{width:14px;height:14px;border:2px solid #ffb74d;border-top-color:#e65100;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="logo">&#127963; <span>Municipal</span> Portal</div>
+  <div class="nav-links">
+    <span class="nav-user" id="nav-user"></span>
+    <button onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">My Complaints</h2>
+      <p class="page-subtitle">Submit and track your municipal complaints</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal()">+ New Complaint</button>
+  </div>
+  <div id="alert-box"></div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-number" id="stat-total">-</div><div class="stat-label">Total</div></div>
+    <div class="stat-card"><div class="stat-number" id="stat-pending" style="color:#7c3aed">-</div><div class="stat-label">Pending</div></div>
+    <div class="stat-card"><div class="stat-number" id="stat-progress" style="color:var(--warning)">-</div><div class="stat-label">In Progress</div></div>
+    <div class="stat-card"><div class="stat-number" id="stat-resolved" style="color:var(--success)">-</div><div class="stat-label">Resolved</div></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Complaint History</span>
+      <span id="result-count" style="font-size:13px;color:var(--text-muted)"></span>
+    </div>
+    <div class="sfbar">
+      <input type="text" id="search-input" placeholder="Search..." oninput="filterComplaints()">
+      <select id="filter-status" onchange="filterComplaints()">
+        <option value="">All Status</option>
+        <option value="pending">Pending</option>
+        <option value="assigned">Assigned</option>
+        <option value="in-progress">In Progress</option>
+        <option value="resolved">Resolved</option>
+      </select>
+      <select id="filter-priority" onchange="filterComplaints()">
+        <option value="">All Priority</option>
+        <option value="critical">Critical</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+    </div>
+    <div id="complaints-container"><div class="loading"><div class="spinner"></div> Loading...</div></div>
+  </div>
+</div>
+
+<!-- New Complaint Modal -->
+<div id="complaint-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <h3 class="card-title">Submit New Complaint</h3>
+      <button class="close-btn" onclick="closeModal()">x</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-alert"></div>
+      <form id="complaint-form" onsubmit="submitComplaint(event)">
+        <div class="form-group">
+          <label>Complaint Title *</label>
+          <input type="text" id="c-title" placeholder="Write a title..." required oninput="onTitleInput(this.value)">
+          <div class="ai-toolbar">
+            <button type="button" class="ai-tool-btn" onclick="suggestTitles()">AI Title Suggest</button>
+          </div>
+          <div id="title-suggestions" class="ai-suggestions" style="display:none"></div>
+          <div id="duplicate-warning" class="duplicate-warning"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Category *</label>
+            <select id="c-category" required>
+              <option value="">Select category</option>
+              <option value="garbage">Garbage</option>
+              <option value="drainage">Drainage</option>
+              <option value="road">Road</option>
+              <option value="water">Water</option>
+              <option value="electricity">Electricity</option>
+              <option value="sewage">Sewage</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Ward / Area</label>
+            <input type="text" id="c-ward" placeholder="Ward 12, Sector 4">
+          </div>
+        </div>
+
+        <!-- PHOTO MANDATORY + AUTO GPS -->
+        <div class="form-group">
+          <label>Photo * <span class="photo-required-badge">REQUIRED</span></label>
+          <p style="font-size:12px;color:#555;margin:4px 0 8px">After taking a photo, the GPS location will automatically be pinned on the map.</p>
+          <div class="photo-upload-zone" id="photo-upload-zone" onclick="document.getElementById('c-photos').click()">
+            <input type="file" id="c-photos" accept="image/*" capture="environment" style="display:none" onchange="onPhotosSelected(this)">
+            <div style="font-size:2.5rem;margin-bottom:8px" id="upload-icon">&#128247;</div>
+            <div style="font-size:14px;color:#0a3d22;font-weight:600" id="upload-text">&#128247; Open Camera and Click Picture</div>
+            <div style="font-size:12px;color:#666;margin-top:4px" id="upload-sub">Take the photo on the spot — the GPS will automatically pin the location.</div>
+          </div>
+          <div class="gps-status" id="gps-status">
+            <div class="gps-spinner"></div>
+            <span id="gps-text">GPS is detecting...</span>
+          </div>
+          <div id="photo-preview" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"></div>
+          <div id="img-analysis-result" class="img-analysis-result"></div>
+        </div>
+
+        <!-- Location -->
+        <div class="form-group">
+          <label>Location * <span style="font-size:11px;color:#2e7d32;font-weight:600">(It will auto-fill when the photo is taken.)</span></label>
+          <div class="map-search">
+            <div class="addr-wrap">
+              <input type="text" id="c-address" placeholder="Take a photo — it will auto-fill using GPS...." required oninput="onAddrInput(this.value)">
+              <div id="addr-results" class="addr-results" style="display:none"></div>
+            </div>
+            <button type="button" class="locate-btn" onclick="searchAddr()">Search</button>
+            <button type="button" class="locate-btn" onclick="useGPS()">GPS</button>
+          </div>
+          <div class="map-coords" id="map-coords">Location set!</div>
+          <div id="complaint-map"></div>
+        </div>
+
+        <!-- Description -->
+        <div class="form-group">
+          <label>Description *</label>
+          <textarea id="c-description" rows="3" placeholder="Describe the problem..." required></textarea>
+          <div class="ai-toolbar">
+            <button type="button" class="ai-tool-btn" onclick="improveDescription()">AI Improve</button>
+            <button type="button" class="voice-btn" id="voice-btn" onclick="toggleVoice()">Voice Input</button>
+          </div>
+          <div id="improve-result" class="improve-result"></div>
+        </div>
+
+        <div class="modal-footer" style="padding:0;border:none;margin-top:1rem">
+          <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="submit-btn">Submit and Classify</button>
+        </div>
+      </form>
+      <div id="ai-result" class="ai-result hidden">
+        <div class="ai-result-title">AI Result</div>
+        <div id="ai-result-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- View Modal -->
+<div id="view-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <span class="card-title" id="vm-title">Details</span>
+      <button class="close-btn" onclick="document.getElementById('view-modal').classList.add('hidden')">x</button>
+    </div>
+    <div class="modal-body" id="view-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="document.getElementById('view-modal').classList.add('hidden')">Close</button>
+      <button class="btn btn-primary" onclick="downloadPDF()">PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rating Modal -->
+<div id="rating-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <span class="card-title">Rate Service</span>
+      <button class="close-btn" onclick="document.getElementById('rating-modal').classList.add('hidden')">x</button>
+    </div>
+    <div class="modal-body" style="text-align:center">
+      <p style="font-size:13px;color:var(--text-muted)" id="rating-title"></p>
+      <div class="stars" id="stars">
+        <span class="star" onclick="setRating(1)">&#9733;</span>
+        <span class="star" onclick="setRating(2)">&#9733;</span>
+        <span class="star" onclick="setRating(3)">&#9733;</span>
+        <span class="star" onclick="setRating(4)">&#9733;</span>
+        <span class="star" onclick="setRating(5)">&#9733;</span>
+      </div>
+      <p id="rating-label" style="font-size:13px;color:var(--text-muted);margin-bottom:1rem">Select stars</p>
+      <div class="form-group" style="text-align:left">
+        <label>Feedback</label>
+        <textarea id="rating-feedback" rows="2" placeholder="Optional..."></textarea>
+      </div>
+      <div id="rating-alert"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="document.getElementById('rating-modal').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitRating()" id="rating-btn">Submit</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/main.js"></script>
+<script>
+redirectIfNotLoggedIn('user');
+setupNavUser();
+
+var allComplaints = [];
+var cMap = null, cMarker = null, selLat = null, selLng = null, addrTimeout = null;
+var currentComplaint = null, curRating = 0, ratingId = null;
+var recognition = null, isRecording = false;
+
+// ══ PHOTO SELECTED ══
+function onPhotosSelected(input) {
+  var files = Array.from(input.files).slice(0, 5);
+  if (!files.length) return;
+
+  var zone = document.getElementById('photo-upload-zone');
+  zone.classList.add('has-photo');
+  document.getElementById('upload-icon').textContent = '✅';
+  document.getElementById('upload-text').textContent = files.length + ' photo(s) selected';
+  document.getElementById('upload-sub').textContent = 'Click to change photos';
+
+  var preview = document.getElementById('photo-preview');
+  preview.innerHTML = '';
+  files.forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = document.createElement('img');
+      img.src = e.target.result;
+      img.style.cssText = 'width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid #0a3d22';
+      preview.appendChild(img);
+    };
+    reader.readAsDataURL(file);
+  });
+
+  captureGPSAuto();
+  analyzeImage(files[0]);
+}
+
+// ══ AUTO GPS ══
+function captureGPSAuto() {
+  var statusEl = document.getElementById('gps-status');
+  var textEl = document.getElementById('gps-text');
+  statusEl.className = 'gps-status detecting';
+  textEl.textContent = 'GPS location is being detected...';
+
+  if (!navigator.geolocation) {
+    statusEl.className = 'gps-status error';
+    textEl.textContent = 'GPS is not supported. Please set the location manually..';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      var lat = pos.coords.latitude;
+      var lng = pos.coords.longitude;
+      var acc = Math.round(pos.coords.accuracy);
+      initMap();
+      placePin(lat, lng);
+      statusEl.className = 'gps-status success';
+      textEl.innerHTML = 'Location pinned! (' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ') approx ' + acc + 'm';
+      fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng)
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.display_name) {
+            document.getElementById('c-address').value = d.display_name.split(',').slice(0, 4).join(', ');
+          }
+        }).catch(function() {});
+    },
+    function(err) {
+      statusEl.className = 'gps-status error';
+      var msgs = ['', 'Location permission denied! Please allow it in settings.', 'GPS signal not found. Please set the location manually.', 'GPS timeout. Please set the location manually.'];
+      textEl.textContent = msgs[err.code] || 'Location could not be detected. Please set it manually.';
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+// ══ AI IMAGE ANALYSIS ══
+function analyzeImage(file) {
+  var el = document.getElementById('img-analysis-result');
+  el.style.display = 'block';
+  el.innerHTML = '<div style="display:flex;align-items:center;gap:8px"><div class="gps-spinner" style="border-color:#90caf9;border-top-color:#0277bd"></div> AI is analyze an image...</div>';
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var base64 = e.target.result.split(',')[1];
+
+    // Try backend AI first
+    apiFetch('/ai/analyze-image', { method: 'POST', body: JSON.stringify({ imageBase64: base64 }) })
+      .then(function(res) {
+        if (res.success && res.analysis) {
+          var a = res.analysis;
+          el.innerHTML = '<strong style="color:#0277bd">AI Analysis:</strong> ' + a.detected_problem + ' | Category: ' + a.category;
+          var btn = document.createElement('button');
+          btn.textContent = 'Apply Suggestions';
+          btn.style.cssText = 'margin-left:8px;background:#0277bd;color:#fff;border:none;padding:4px 10px;border-radius:100px;font-size:12px;cursor:pointer;font-family:inherit';
+          btn.onclick = function() { applyImageAnalysis(a.suggested_title || '', a.category || ''); };
+          el.appendChild(btn);
+        } else {
+          showQuickCategoryPicker(el);
+        }
+      }).catch(function() {
+        // AI backend unavailable — show smart category picker instead
+        showQuickCategoryPicker(el);
+      });
+  };
+  reader.readAsDataURL(file);
+}
+
+// ══ QUICK CATEGORY PICKER (fallback when AI unavailable) ══
+function showQuickCategoryPicker(el) {
+  el.innerHTML = '<strong style="color:#0277bd">Photo has been taken! </strong> Select Complaint category:';
+  var categories = [
+    { val: 'garbage', label: '🗑️ Garbage' },
+    { val: 'drainage', label: '🌊 Drainage' },
+    { val: 'road', label: '🛣️ Road' },
+    { val: 'water', label: '💧 Water' },
+    { val: 'electricity', label: '⚡ Electricity' },
+    { val: 'sewage', label: '🚽 Sewage' },
+    { val: 'other', label: '📋 Other' }
+  ];
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px';
+  categories.forEach(function(cat) {
+    var btn = document.createElement('button');
+    btn.textContent = cat.label;
+    btn.style.cssText = 'background:#e3f2fd;color:#0277bd;border:1.5px solid #90caf9;padding:5px 10px;border-radius:100px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600';
+    btn.onclick = function() {
+      document.getElementById('c-category').value = cat.val;
+      el.innerHTML = '<strong style="color:#2e7d32">✅ Category set: ' + cat.label + '</strong>';
+    };
+    wrap.appendChild(btn);
+  });
+  el.appendChild(wrap);
+}
+
+function applyImageAnalysis(title, category) {
+  if (title) document.getElementById('c-title').value = title;
+  if (category) document.getElementById('c-category').value = category;
+  showAlert('modal-alert', 'AI suggestions applied!', 'success');
+}
+
+// ══ VOICE INPUT ══
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    alert('Voice input is only available in Chrome!');
+    return;
+  }
+  if (isRecording) { recognition.stop(); return; }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'hi-IN';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  var btn = document.getElementById('voice-btn');
+  btn.classList.add('recording');
+  btn.textContent = 'Recording...';
+  isRecording = true;
+  recognition.onresult = function(event) {
+    document.getElementById('c-description').value = Array.from(event.results).map(function(r) { return r[0].transcript; }).join('');
+  };
+  recognition.onend = function() { btn.classList.remove('recording'); btn.textContent = 'Voice Input'; isRecording = false; };
+  recognition.start();
+}
+
+// ══ AI TITLE SUGGEST ══
+function onTitleInput(val) {
+  document.getElementById('duplicate-warning').style.display = 'none';
+  if (val.length < 5) return;
+  setTimeout(function() { checkDuplicate(val); }, 800);
+}
+
+function checkDuplicate(title) {
+  var lower = title.toLowerCase();
+  var similar = allComplaints.filter(function(c) {
+    return c.status !== 'resolved' &&
+      (c.title.toLowerCase().indexOf(lower.slice(0, 10)) !== -1 || lower.indexOf(c.title.toLowerCase().slice(0, 10)) !== -1);
+  });
+  var dupEl = document.getElementById('duplicate-warning');
+  if (similar.length > 0) {
+    dupEl.style.display = 'block';
+    dupEl.textContent = 'Similar complaint already exists: ' + similar[0].title + ' (' + similar[0].status + ')';
+  }
+}
+
+function suggestTitles() {
+  var category = document.getElementById('c-category').value;
+  var btn = event.target;
+  btn.disabled = true; btn.textContent = 'Thinking...';
+  var suggestions = {
+    garbage: ['Garbage not collected for 3 days', 'Overflowing dustbin near main road', 'Waste dumping on street'],
+    drainage: ['Blocked drain causing waterlogging', 'Drain overflow on road', 'Clogged drain near house'],
+    road: ['Large pothole causing accidents', 'Road damage after rain', 'Footpath damaged'],
+    water: ['No water supply for 2 days', 'Broken water pipe leaking', 'Contaminated water supply'],
+    electricity: ['Street light not working', 'Power cut for many hours', 'Broken electric pole'],
+    sewage: ['Sewage overflow on road', 'Open manhole dangerous', 'Blocked sewer line'],
+    other: ['Municipal problem in area', 'Public property damaged', 'Civic issue needs attention']
+  };
+  var list = suggestions[category] || suggestions.other;
+  var el = document.getElementById('title-suggestions');
+  el.innerHTML = '<div style="font-size:12px;color:#2e7d32;font-weight:700;margin-bottom:6px">Suggested Titles:</div>';
+  list.forEach(function(s) {
+    var div = document.createElement('div');
+    div.className = 'ai-suggestion-item';
+    div.textContent = s;
+    div.onclick = function() { selectTitle(s); };
+    el.appendChild(div);
+  });
+  el.style.display = 'block';
+  btn.disabled = false; btn.textContent = 'AI Title Suggest';
+}
+
+function selectTitle(title) {
+  document.getElementById('c-title').value = title;
+  document.getElementById('title-suggestions').style.display = 'none';
+}
+
+// ══ AI IMPROVE ══
+function improveDescription() {
+  var desc = document.getElementById('c-description').value.trim();
+  if (!desc) { alert('Write description first!'); return; }
+  var btn = event.target;
+  btn.disabled = true; btn.textContent = 'Improving...';
+  apiFetch('/ai/improve-text', { method: 'POST', body: JSON.stringify({ text: desc }) })
+    .then(function(res) {
+      var el = document.getElementById('improve-result');
+      el.style.display = 'block';
+      el.innerHTML = '<strong>AI Improved:</strong><br>';
+      var p = document.createElement('p');
+      p.style.cssText = 'color:#333;line-height:1.6;margin:6px 0';
+      p.textContent = res.improved;
+      el.appendChild(p);
+      var useBtn = document.createElement('button');
+      useBtn.textContent = 'Use This';
+      useBtn.style.cssText = 'margin-top:8px;background:#7b1fa2;color:#fff;border:none;padding:6px 14px;border-radius:100px;font-size:12px;cursor:pointer;font-family:inherit';
+      useBtn.onclick = function() {
+        document.getElementById('c-description').value = res.improved;
+        el.style.display = 'none';
+      };
+      el.appendChild(useBtn);
+      btn.disabled = false; btn.textContent = 'AI Improve';
+    }).catch(function() { alert('AI unavailable.'); btn.disabled = false; btn.textContent = 'AI Improve'; });
+}
+
+// ══ MAP ══
+function initMap() {
+  if (cMap) return;
+  cMap = L.map('complaint-map').setView([25.5941, 85.1376], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }).addTo(cMap);
+  cMap.on('click', function(e) { placePin(e.latlng.lat, e.latlng.lng); revGeo(e.latlng.lat, e.latlng.lng); });
+}
+
+function placePin(lat, lng) {
+  if (!cMap) initMap();
+  if (cMarker) cMap.removeLayer(cMarker);
+  var icon = L.divIcon({
+    html: '<div style="background:#0a3d22;color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:0.9rem;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)">P</div>',
+    iconSize: [30, 30], iconAnchor: [15, 30]
+  });
+  cMarker = L.marker([lat, lng], { icon: icon }).addTo(cMap);
+  cMap.setView([lat, lng], 16);
+  selLat = lat; selLng = lng;
+  var el = document.getElementById('map-coords');
+  el.style.display = 'block';
+  el.textContent = 'Location pinned! (' + lat.toFixed(4) + ', ' + lng.toFixed(4) + ')';
+}
+
+function onAddrInput(v) {
+  clearTimeout(addrTimeout);
+  var el = document.getElementById('addr-results');
+  if (v.length < 3) { el.style.display = 'none'; return; }
+  addrTimeout = setTimeout(function() {
+    fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(v + ', India') + '&limit=5&countrycodes=in')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.length) { el.style.display = 'none'; return; }
+        el.innerHTML = '';
+        d.forEach(function(i) {
+          var div = document.createElement('div');
+          div.className = 'addr-item';
+          div.textContent = i.display_name;
+          div.onclick = function() { pickAddr(i.lat, i.lon, i.display_name); };
+          el.appendChild(div);
+        });
+        el.style.display = 'block';
+      }).catch(function() { el.style.display = 'none'; });
+  }, 500);
+}
+
+function pickAddr(lat, lon, name) {
+  document.getElementById('c-address').value = name.split(',').slice(0, 4).join(',');
+  document.getElementById('addr-results').style.display = 'none';
+  placePin(parseFloat(lat), parseFloat(lon));
+}
+
+function searchAddr() {
+  var a = document.getElementById('c-address').value.trim();
+  if (!a) { alert('Write Address!'); return; }
+  fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(a + ', India') + '&limit=1&countrycodes=in')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.length) { alert('Not found! Please also enter the city name.'); return; }
+      pickAddr(d[0].lat, d[0].lon, d[0].display_name);
+    });
+}
+
+function revGeo(lat, lng) {
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng)
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.display_name) document.getElementById('c-address').value = d.display_name.split(',').slice(0, 4).join(','); })
+    .catch(function() {});
+}
+
+function useGPS() {
+  if (!navigator.geolocation) { alert('No GPS!'); return; }
+  navigator.geolocation.getCurrentPosition(
+    function(p) { placePin(p.coords.latitude, p.coords.longitude); revGeo(p.coords.latitude, p.coords.longitude); },
+    function() { alert('Location allow karo!'); }
+  );
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.addr-wrap')) document.getElementById('addr-results').style.display = 'none';
+});
+
+// ══ LOAD COMPLAINTS ══
+function loadComplaints() {
+  apiFetch('/complaints/my')
+    .then(function(data) { allComplaints = data; updateStats(data); filterComplaints(); })
+    .catch(function(err) { document.getElementById('complaints-container').innerHTML = '<div class="alert alert-error">' + err.message + '</div>'; });
+}
+
+function updateStats(d) {
+  document.getElementById('stat-total').textContent = d.length;
+  document.getElementById('stat-pending').textContent = d.filter(function(c) { return c.status === 'pending'; }).length;
+  document.getElementById('stat-progress').textContent = d.filter(function(c) { return c.status === 'assigned' || c.status === 'in-progress'; }).length;
+  document.getElementById('stat-resolved').textContent = d.filter(function(c) { return c.status === 'resolved'; }).length;
+}
+
+function filterComplaints() {
+  var s = document.getElementById('search-input').value.toLowerCase();
+  var st = document.getElementById('filter-status').value;
+  var pr = document.getElementById('filter-priority').value;
+  var f = allComplaints.filter(function(c) {
+    return (!s || c.title.toLowerCase().indexOf(s) !== -1 || c.location.address.toLowerCase().indexOf(s) !== -1) &&
+           (!st || c.status === st) && (!pr || c.priority === pr);
+  });
+  document.getElementById('result-count').textContent = f.length !== allComplaints.length ? f.length + '/' + allComplaints.length : allComplaints.length + ' complaints';
+  renderComplaints(f);
+}
+
+function tlHTML(status) {
+  var steps = [
+    { l: 'Submitted', i: '&#128203;' }, { l: 'Assigned', i: '&#128119;' },
+    { l: 'Working', i: '&#128295;' }, { l: 'Resolved', i: '&#9989;' }
+  ];
+  var order = ['pending', 'assigned', 'in-progress', 'resolved'];
+  var ci = order.indexOf(status);
+  var html = '<div class="timeline">';
+  steps.forEach(function(s, i) {
+    var d = i < ci, a = i === ci;
+    html += '<div class="tl-step"><div class="tl-dot ' + (d ? 'done' : a ? 'active' : '') + '">' + s.i + '</div>' +
+            '<div class="tl-label ' + (d || a ? 'done' : '') + '">' + s.l + '</div></div>';
+  });
+  return html + '</div>';
+}
+
+function renderComplaints(complaints) {
+  var el = document.getElementById('complaints-container');
+  if (!complaints.length) {
+    el.innerHTML = '<div class="empty-state"><p>No complaints found.</p></div>';
+    return;
+  }
+  var html = '<div class="table-wrap"><table><thead><tr><th>Title</th><th>Category</th><th>Priority</th><th>Progress</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+  complaints.forEach(function(c) {
+    html += '<tr>';
+    html += '<td><strong>' + c.title + '</strong><br><small style="color:var(--text-muted)">' + c.location.address.substring(0, 35) + '...</small></td>';
+    html += '<td>' + c.category + '</td>';
+    html += '<td>' + priorityBadge(c.priority) + '</td>';
+    html += '<td>' + tlHTML(c.status) + '</td>';
+    html += '<td>' + statusBadge(c.status) + '</td>';
+    html += '<td><div style="display:flex;gap:4px;flex-wrap:wrap">';
+    html += '<button class="btn btn-outline btn-sm" onclick="viewComplaint(\'' + c._id + '\')">View</button>';
+    html += '<button class="btn btn-outline btn-sm" onclick="genPDF(\'' + c._id + '\')">PDF</button>';
+    if (c.status === 'resolved' && !c.rating) {
+      html += '<button class="btn btn-accent btn-sm" onclick="openRating(\'' + c._id + '\')">Rate</button>';
+    }
+    if (c.rating) {
+      html += '<span style="color:#f59e0b;font-size:13px">' + '★'.repeat(c.rating) + '</span>';
+    }
+    html += '</div></td></tr>';
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+
+function viewComplaint(id) {
+  apiFetch('/complaints/' + id).then(function(c) {
+    currentComplaint = c;
+    document.getElementById('vm-title').textContent = c.title;
+    var html = '<div style="display:grid;gap:10px;font-size:14px">';
+    html += tlHTML(c.status);
+    html += '<div>' + priorityBadge(c.priority) + ' ' + statusBadge(c.status) + '</div>';
+    html += '<div><strong>Category:</strong> ' + c.category + '</div>';
+    html += '<div><strong>Location:</strong> ' + c.location.address;
+    if (c.location.coordinates && c.location.coordinates.lat) {
+      html += '<br><a href="https://www.google.com/maps?q=' + c.location.coordinates.lat + ',' + c.location.coordinates.lng + '" target="_blank" style="font-size:12px;color:#0a3d22">See Map</a>';
+    }
+    html += '</div>';
+    html += '<div><strong>Description:</strong><br><span style="color:var(--text-muted)">' + c.description + '</span></div>';
+    if (c.assignedWorker) html += '<div><strong>Worker:</strong> ' + c.assignedWorker.name + '</div>';
+    if (c.workerNotes) html += '<div><strong>Notes:</strong> ' + c.workerNotes + '</div>';
+    html += '<div style="font-size:12px;color:var(--text-muted)">Ref: #' + c._id.slice(-6).toUpperCase() + ' | ' + formatDate(c.createdAt) + '</div>';
+    html += '</div>';
+    document.getElementById('view-modal-body').innerHTML = html;
+    document.getElementById('view-modal').classList.remove('hidden');
+  }).catch(function(err) { showAlert('alert-box', err.message, 'error'); });
+}
+
+function genPDF(id) {
+  var c = allComplaints.filter(function(x) { return x._id === id; })[0] || currentComplaint;
+  if (!c) return;
+  var doc = new window.jspdf.jsPDF();
+  doc.setFillColor(10, 61, 34); doc.rect(0, 0, 210, 35, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFontSize(20); doc.setFont('helvetica', 'bold');
+  doc.text('NAGARSEVA', 15, 15); doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+  doc.text('AI Municipal Complaint System', 15, 23);
+  doc.text('Ref: #' + c._id.slice(-6).toUpperCase(), 150, 15);
+  doc.setTextColor(0, 0, 0); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+  doc.text('Complaint Details', 15, 50); doc.setDrawColor(200, 200, 200); doc.line(15, 53, 195, 53);
+  var fields = [['Title', c.title], ['Category', c.category], ['Priority', c.priority.toUpperCase()], ['Status', c.status.toUpperCase()], ['Location', c.location.address], ['Submitted', formatDate(c.createdAt)]];
+  var y = 62;
+  fields.forEach(function(f) {
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(100, 100, 100); doc.text(f[0] + ':', 15, y);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
+    var ln = doc.splitTextToSize(String(f[1]), 130); doc.text(ln, 65, y); y += ln.length * 7 + 3;
+  });
+  doc.save('NagarSeva_' + c._id.slice(-6).toUpperCase() + '.pdf');
+}
+
+function downloadPDF() { if (currentComplaint) genPDF(currentComplaint._id); }
+
+function openRating(id) {
+  var c = allComplaints.filter(function(x) { return x._id === id; })[0];
+  ratingId = id; curRating = 0;
+  document.getElementById('rating-title').textContent = c ? c.title : '';
+  document.getElementById('rating-feedback').value = '';
+  document.getElementById('rating-alert').innerHTML = '';
+  document.getElementById('rating-btn').disabled = false;
+  document.getElementById('rating-btn').textContent = 'Submit';
+  updStars(0);
+  document.getElementById('rating-modal').classList.remove('hidden');
+}
+
+function setRating(v) {
+  curRating = v; updStars(v);
+  var lb = ['', 'Very Bad', 'Bad', 'OK', 'Good', 'Excellent'];
+  document.getElementById('rating-label').textContent = lb[v];
+}
+function updStars(v) { document.querySelectorAll('.star').forEach(function(s, i) { s.classList.toggle('active', i < v); }); }
+
+function submitRating() {
+  if (!curRating) { alert('Stars select karo!'); return; }
+  var btn = document.getElementById('rating-btn');
+  btn.textContent = 'Submitting...'; btn.disabled = true;
+  apiFetch('/complaints/' + ratingId + '/rate', { method: 'POST', body: JSON.stringify({ rating: curRating, feedback: document.getElementById('rating-feedback').value }) })
+    .then(function() {
+      document.getElementById('rating-alert').innerHTML = '<div class="alert alert-success">Thank you!</div>';
+      setTimeout(function() { document.getElementById('rating-modal').classList.add('hidden'); loadComplaints(); }, 1500);
+    }).catch(function(err) {
+      document.getElementById('rating-alert').innerHTML = '<div class="alert alert-error">' + err.message + '</div>';
+      btn.textContent = 'Submit'; btn.disabled = false;
+    });
+}
+
+function openModal() {
+  document.getElementById('complaint-modal').classList.remove('hidden');
+  document.getElementById('ai-result').classList.add('hidden');
+  document.getElementById('complaint-form').reset();
+  document.getElementById('photo-preview').innerHTML = '';
+  document.getElementById('modal-alert').innerHTML = '';
+  document.getElementById('map-coords').style.display = 'none';
+  document.getElementById('addr-results').style.display = 'none';
+  document.getElementById('title-suggestions').style.display = 'none';
+  document.getElementById('duplicate-warning').style.display = 'none';
+  document.getElementById('improve-result').style.display = 'none';
+  document.getElementById('img-analysis-result').style.display = 'none';
+  document.getElementById('gps-status').className = 'gps-status';
+  var zone = document.getElementById('photo-upload-zone');
+  zone.classList.remove('has-photo');
+  document.getElementById('upload-icon').innerHTML = '&#128247;';
+  document.getElementById('upload-text').innerHTML = '&#128247; Open Camera — Click Picture';
+  document.getElementById('upload-sub').textContent = 'Take the photo on the spot — the GPS location will automatically be pinned.';
+  selLat = null; selLng = null;
+  setTimeout(function() { initMap(); if (cMarker) { cMap.removeLayer(cMarker); cMarker = null; } cMap.invalidateSize(); }, 300);
+}
+
+function closeModal() { document.getElementById('complaint-modal').classList.add('hidden'); }
+
+function submitComplaint(e) {
+  e.preventDefault();
+  var photoFiles = document.getElementById('c-photos').files;
+  if (!photoFiles || photoFiles.length === 0) {
+    document.getElementById('modal-alert').innerHTML = '<div class="alert alert-error">Taking a photo is required! Please take a photo before submitting the complaint.</div>';
+    document.getElementById('photo-upload-zone').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  var btn = document.getElementById('submit-btn');
+  btn.textContent = 'Classifying...'; btn.disabled = true;
+  var fd = new FormData();
+  fd.append('title', document.getElementById('c-title').value);
+  fd.append('description', document.getElementById('c-description').value);
+  fd.append('category', document.getElementById('c-category').value);
+  fd.append('address', document.getElementById('c-address').value);
+  fd.append('ward', document.getElementById('c-ward').value);
+  if (selLat) fd.append('lat', selLat);
+  if (selLng) fd.append('lng', selLng);
+  Array.from(photoFiles).slice(0, 5).forEach(function(f) { fd.append('photos', f); });
+  apiFormData('/complaints', fd)
+    .then(function(data) {
+      var ai = data.complaint.aiClassification;
+      document.getElementById('ai-result').classList.remove('hidden');
+      document.getElementById('ai-result-content').innerHTML =
+        '<p><strong>Priority:</strong> ' + priorityBadge(ai.priority) + ' Urgency: ' + ai.urgencyScore + '/10</p>' +
+        '<p style="font-size:13px;color:var(--text-muted)">' + ai.reason + '</p>' +
+        '<p style="color:var(--success);font-weight:600">Ref: #' + data.complaint._id.slice(-6).toUpperCase() + '</p>';
+      btn.textContent = 'Submitted!';
+      loadComplaints();
+      setTimeout(function() { closeModal(); btn.textContent = 'Submit and Classify'; btn.disabled = false; }, 4000);
+    }).catch(function(err) {
+      document.getElementById('modal-alert').innerHTML = '<div class="alert alert-error">' + err.message + '</div>';
+      btn.textContent = 'Submit and Classify'; btn.disabled = false;
+    });
+}
+
+setInterval(loadComplaints, 120000);
+loadComplaints();
+</script>
+</body>
+</html>

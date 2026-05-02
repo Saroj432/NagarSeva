@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NagarSeva — Worker Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    .task-map { height: 180px; border-radius: 8px; border: 1px solid var(--border); margin-top: 10px; }
+    .navigate-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #0288d1; color: #fff; border: none;
+      padding: 8px 16px; border-radius: 100px;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      text-decoration: none; margin-top: 8px;
+      font-family: inherit;
+    }
+    .navigate-btn:hover { background: #0277bd; }
+    .no-pin-msg { font-size:12px; color:var(--text-muted); margin-top:8px; padding:8px 12px; background:var(--surface2); border-radius:6px; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a class="logo" href="/">Nagar<span>Seva</span></a>
+  <div class="nav-links">
+    <span class="nav-user" id="nav-user"></span>
+    <button onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">My Tasks</h2>
+      <p class="page-subtitle">Assigned complaints — navigate using the map.</p>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="loadComplaints()">↻ Refresh</button>
+  </div>
+
+  <div id="alert-box"></div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-blue">📋</div>
+      <div class="stat-info"><div class="stat-number" id="sw-total">0</div><div class="stat-label">Total</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-red">🔴</div>
+      <div class="stat-info"><div class="stat-number" id="sw-critical">0</div><div class="stat-label">Critical</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-amber">🔄</div>
+      <div class="stat-info"><div class="stat-number" id="sw-inprogress">0</div><div class="stat-label">In Progress</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-green">✅</div>
+      <div class="stat-info"><div class="stat-number" id="sw-resolved">0</div><div class="stat-label">Resolved</div></div>
+    </div>
+  </div>
+
+  <div id="tasks-container">
+    <div class="loading"><div class="spinner"></div> Loading tasks...</div>
+  </div>
+</div>
+
+<!-- Update Modal -->
+<div id="update-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="card-title">📝 Update Status</span>
+      <button class="close-btn" onclick="document.getElementById('update-modal').classList.add('hidden')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="update-info" style="background:var(--surface2);padding:1rem;border-radius:10px;margin-bottom:1rem;font-size:14px;border:1px solid var(--border)"></div>
+      <div id="update-alert"></div>
+      <div class="form-group">
+        <label>New Status</label>
+        <select id="new-status">
+          <option value="in-progress">🔄 In Progress — Work has started</option>
+          <option value="resolved">✅ Resolved — Work is complete</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Work Notes</label>
+        <textarea id="worker-notes" rows="3" placeholder="Describe what you did..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="document.getElementById('update-modal').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmUpdate()">✅ Update Status</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/main.js"></script>
+<script>
+  redirectIfNotLoggedIn('worker');
+  setupNavUser();
+
+  let complaints = [], currentId = null;
+
+  async function loadComplaints() {
+    try {
+      complaints = await apiFetch('/worker/complaints');
+      updateStats(complaints);
+      renderTasks(complaints);
+    } catch (err) {
+      document.getElementById('tasks-container').innerHTML =
+        `<div class="alert alert-error">${err.message}</div>`;
+    }
+  }
+
+  function updateStats(data) {
+    document.getElementById('sw-total').textContent = data.length;
+    document.getElementById('sw-critical').textContent = data.filter(c => c.priority === 'critical').length;
+    document.getElementById('sw-inprogress').textContent = data.filter(c => c.status === 'in-progress').length;
+    document.getElementById('sw-resolved').textContent = data.filter(c => c.status === 'resolved').length;
+  }
+
+  function renderTasks(data) {
+    const el = document.getElementById('tasks-container');
+    if (!data.length) {
+      el.innerHTML = `<div class="empty-state"><div class="icon">✅</div><p>No tasks assigned.</p></div>`;
+      return;
+    }
+
+    el.innerHTML = data.map(c => {
+      const hasCoords = c.location && c.location.coordinates &&
+                        c.location.coordinates.lat && c.location.coordinates.lng;
+      const lat = hasCoords ? c.location.coordinates.lat : null;
+      const lng = hasCoords ? c.location.coordinates.lng : null;
+
+      return `
+      <div class="task-card task-card-${c.priority}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+          <div style="flex:1;min-width:200px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+              ${priorityBadge(c.priority)}
+              ${statusBadge(c.status)}
+              <span style="font-size:12px;color:var(--text-muted);background:var(--surface2);padding:2px 8px;border-radius:100px;border:1px solid var(--border)">⚡ ${c.aiClassification?.urgencyScore||5}/10</span>
+            </div>
+            <h3 style="font-size:1rem;font-weight:700;color:var(--primary-dark);margin-bottom:6px">${c.title}</h3>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:3px">📍 ${c.location.address}</p>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:3px">👤 ${c.user?.name} — ${c.user?.phone || 'N/A'}</p>
+            <p style="font-size:12px;color:var(--text-muted)">📅 ${formatDate(c.assignedAt || c.createdAt)}</p>
+
+            ${hasCoords
+              ? `<div id="map-${c._id}" class="task-map"></div>
+                 <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="navigate-btn">
+                   🧭 Google Maps se Navigate Karo
+                 </a>`
+              : `<div class="no-pin-msg">📍 In this complaint, there is no map pin — the user did not select a location</div>`
+            }
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+            ${c.status !== 'resolved'
+              ? `<button class="btn btn-primary btn-sm" onclick="openUpdate('${c._id}')">📝 Update</button>`
+              : '<span style="color:var(--success);font-weight:600;font-size:13px">✅ Done</span>'}
+          </div>
+        </div>
+        ${c.aiClassification?.reason
+          ? `<div style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--text-muted)">🤖 ${c.aiClassification.reason}</div>`
+          : ''}
+        ${c.adminNotes
+          ? `<div style="margin-top:8px;padding:10px;background:#fff8e1;border-radius:8px;font-size:12px;color:#f57f17;border:1px solid #ffe082">📋 Admin: ${c.adminNotes}</div>`
+          : ''}
+        ${c.workerNotes
+          ? `<div style="margin-top:8px;padding:10px;background:#e8f5e9;border-radius:8px;font-size:12px;color:#2e7d32;border:1px solid #a5d6a7">📝 Your notes: ${c.workerNotes}</div>`
+          : ''}
+      </div>`;
+    }).join('');
+
+    // Init mini maps after render
+    setTimeout(() => {
+      data.forEach(c => {
+        if (!c.location?.coordinates?.lat || !c.location?.coordinates?.lng) return;
+        const mapEl = document.getElementById(`map-${c._id}`);
+        if (!mapEl) return;
+
+        const lat = c.location.coordinates.lat;
+        const lng = c.location.coordinates.lng;
+
+        const m = L.map(`map-${c._id}`, {
+          zoomControl: false,
+          dragging: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          touchZoom: false
+        }).setView([lat, lng], 16);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OSM'
+        }).addTo(m);
+
+        const color = c.priority === 'critical' ? '#e53935'
+          : c.priority === 'high' ? '#f57c00' : '#1a6b3c';
+
+        L.marker([lat, lng], {
+          icon: L.divIcon({
+            html: `<div style="background:${color};color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:1rem;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">📍</div>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 30]
+          })
+        }).addTo(m).bindPopup(`<strong>${c.title}</strong>`).openPopup();
+      });
+    }, 400);
+  }
+
+  function openUpdate(id) {
+    currentId = id;
+    const c = complaints.find(x => x._id === id);
+    if (!c) return;
+    document.getElementById('update-info').innerHTML = `
+      <strong>${c.title}</strong><br>
+      <span style="color:var(--text-muted)">📍 ${c.location.address}</span><br>
+      <div style="margin-top:6px">${priorityBadge(c.priority)} ${statusBadge(c.status)}</div>`;
+    document.getElementById('worker-notes').value = '';
+    document.getElementById('update-alert').innerHTML = '';
+    document.getElementById('update-modal').classList.remove('hidden');
+  }
+
+  async function confirmUpdate() {
+    try {
+      await apiFetch(`/worker/complaints/${currentId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          status: document.getElementById('new-status').value,
+          workerNotes: document.getElementById('worker-notes').value
+        })
+      });
+      showAlert('alert-box', '✅ Status updated!', 'success');
+      document.getElementById('update-modal').classList.add('hidden');
+      loadComplaints();
+    } catch (err) {
+      document.getElementById('update-alert').innerHTML =
+        `<div class="alert alert-error">${err.message}</div>`;
+    }
+  }
+
+  loadComplaints();
+</script>
+</body>
+</html>

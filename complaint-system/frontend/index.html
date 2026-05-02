@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NagarSeva — Login</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ── GPS Badge ── */
+    .gps-badge {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: #e8f5e9;
+      border: 1px solid #a5d6a7;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-top: 8px;
+      font-size: 13px;
+      color: #2e7d32;
+    }
+    .gps-badge.show { display: flex; }
+    .gps-badge.error { background: #ffebee; border-color: #ef9a9a; color: #c62828; }
+    .gps-spinner {
+      width: 14px; height: 14px;
+      border: 2px solid #a5d6a7;
+      border-top-color: #2e7d32;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Photo preview ── */
+    .photo-preview {
+      display: none;
+      margin-top: 10px;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+    .photo-preview.show { display: block; }
+    .photo-preview img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+    .photo-remove {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 28px; height: 28px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── Photo upload drop zone ── */
+    .photo-dropzone {
+      border: 2px dashed var(--border, #d1d5db);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--text-muted, #888);
+      font-size: 14px;
+    }
+    .photo-dropzone:hover { border-color: var(--primary, #0a3d22); background: #f0faf4; }
+    .photo-dropzone .icon { font-size: 2rem; margin-bottom: 6px; }
+
+    /* ── Complaint section (after login) ── */
+    #complaint-section { display: none; }
+    #complaint-section.show { display: block; }
+
+    .map-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--primary, #0a3d22);
+      text-decoration: none;
+      margin-top: 4px;
+    }
+    .map-link:hover { text-decoration: underline; }
+
+    /* ── Popup Modal ── */
+    .popup-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      backdrop-filter: blur(3px);
+    }
+    .popup-overlay.show { display: flex; }
+    .popup-box {
+      background: #fff;
+      border-radius: 16px;
+      padding: 2rem 1.5rem 1.5rem;
+      max-width: 360px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+      animation: popIn 0.25s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes popIn {
+      from { transform: scale(0.7); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .popup-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+    .popup-title { font-size: 1.1rem; font-weight: 700; color: #c0392b; margin: 0 0 0.5rem; }
+    .popup-title.already { color: #0a3d22; }
+    .popup-msg { font-size: 14px; color: #555; margin: 0 0 1.25rem; line-height: 1.5; }
+    .popup-actions { display: flex; gap: 10px; justify-content: center; }
+    .popup-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .popup-btn:hover { opacity: 0.85; }
+    .popup-btn-primary { background: #0a3d22; color: #fff; }
+    .popup-btn-secondary { background: #f0f0f0; color: #333; }
+  </style>
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div style="font-size:2.5rem;">🏛️</div>
+      <h1>NagarSeva</h1>
+      <p>AI-Powered Municipal Complaint Portal</p>
+    </div>
+
+    <div class="auth-tabs" id="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Login</button>
+      <button class="auth-tab" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <div id="alert-box"></div>
+
+    <!-- ══ LOGIN FORM ══ -->
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>EMAIL</label>
+        <input type="email" id="login-email" placeholder="Enter your email" required>
+      </div>
+      <div class="form-group">
+        <label>PASSWORD</label>
+        <input type="password" id="login-password" placeholder="Enter your password" required>
+        <div style="text-align:right;margin-top:6px">
+          <a href="#" onclick="showForgotPassword()" style="font-size:13px;color:var(--primary);text-decoration:none">Forgot Password?</a>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" style="margin-top:0.5rem">Login</button>
+    </form>
+
+    <!-- ══ REGISTER FORM STEP 1 ══ -->
+    <form id="register-form" class="hidden" onsubmit="handleSendRegisterOtp(event)">
+      <div class="form-group">
+        <label>FULL NAME</label>
+        <input type="text" id="reg-name" placeholder="Your full name" required>
+      </div>
+      <div class="form-group">
+        <label>EMAIL</label>
+        <input type="email" id="reg-email" placeholder="Your real email (Gmail, Yahoo etc.)" required>
+      </div>
+      <div class="form-group">
+        <label>PHONE</label>
+        <input type="tel" id="reg-phone" placeholder="10-digit Indian mobile number" maxlength="13">
+        <small style="color:#888;font-size:11px">Example: 9876543210 (Number start from 6,7 and 9)</small>
+      </div>
+      <div class="form-group">
+        <label>ADDRESS</label>
+        <input type="text" id="reg-address" placeholder="Your address">
+      </div>
+      <div class="form-group">
+        <label>REGISTER AS</label>
+        <select id="reg-role">
+          <option value="user">Citizen</option>
+          <option value="worker">Field Worker</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>PASSWORD</label>
+        <input type="password" id="reg-password" placeholder="Create password (min 6 chars)" required minlength="6">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="reg-otp-btn" style="margin-top:0.5rem">📧 Send OTP to Verify Email</button>
+    </form>
+
+    <!-- ══ REGISTER FORM STEP 2 (OTP verify) ══ -->
+    <form id="register-otp-form" class="hidden" onsubmit="handleRegister(event)">
+      <div style="margin-bottom:1.25rem">
+        <h3 style="font-size:1rem;color:var(--primary-dark);margin-bottom:4px">✉️ Verify Your Email</h3>
+        <p style="font-size:13px;color:var(--text-muted)" id="reg-otp-info">OTP sent to your email. Please check your inbox.</p>
+      </div>
+      <div class="form-group">
+        <label>OTP CODE</label>
+        <input type="text" id="reg-otp-input" placeholder="Enter 6-digit OTP" maxlength="6" required
+          style="letter-spacing:0.3em;font-size:1.2rem;text-align:center" inputmode="numeric">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="reg-verify-btn" style="margin-top:0.5rem">✅ Verify & Create Account</button>
+      <p style="text-align:center;margin-top:1rem;font-size:13px">
+        <a href="#" onclick="switchTab('register')" style="color:var(--primary);text-decoration:none">← Go Back</a>
+      </p>
+    </form>
+
+    <!-- ══ FORGOT PASSWORD FORM ══ -->
+    <form id="forgot-form" class="hidden" onsubmit="handleForgotPassword(event)">
+      <div style="margin-bottom:1.25rem">
+        <h3 style="font-size:1rem;color:var(--primary-dark);margin-bottom:4px">Password Reset</h3>
+        <p style="font-size:13px;color:var(--text-muted)">Enter your registered email — OTP will be sent</p>
+      </div>
+      <div class="form-group">
+        <label>REGISTERED EMAIL</label>
+        <input type="email" id="forgot-email" placeholder="Enter your registered email" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="otp-send-btn">📧 Send OTP</button>
+      <p style="text-align:center;margin-top:1rem;font-size:13px">
+        <a href="#" onclick="switchTab('login')" style="color:var(--primary);text-decoration:none">← Login Again</a>
+      </p>
+    </form>
+
+    <!-- ══ RESET PASSWORD OTP FORM ══ -->
+    <form id="otp-form" class="hidden" onsubmit="handleResetPassword(event)">
+      <div style="margin-bottom:1.25rem">
+        <h3 style="font-size:1rem;color:var(--primary-dark);margin-bottom:4px">OTP Verify</h3>
+        <p style="font-size:13px;color:var(--text-muted)">Enter the 6-digit OTP sent to your email.</p>
+      </div>
+      <div class="form-group">
+        <label>OTP CODE</label>
+        <input type="text" id="otp-input" placeholder="Enter 6-digit OTP" maxlength="6" required
+          style="letter-spacing:0.3em;font-size:1.2rem;text-align:center" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label>NEW PASSWORD</label>
+        <input type="password" id="new-password" placeholder="Enter new password (min 6 chars)" required minlength="6">
+      </div>
+      <div class="form-group">
+        <label>CONFIRM PASSWORD</label>
+        <input type="password" id="confirm-password" placeholder="Re-enter password" required minlength="6">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="reset-btn">🔐 Reset Password</button>
+      <p style="text-align:center;margin-top:1rem;font-size:13px">
+        <a href="#" onclick="showForgotPassword()" style="color:var(--primary);text-decoration:none">← Resend OTP</a>
+      </p>
+    </form>
+
+    <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted);text-align:center;">
+      Admin? Contact your municipal office for admin credentials.
+    </div>
+  </div>
+
+  <!-- ══ COMPLAINT SECTION (shown after login if needed) ══ -->
+  <div class="auth-card" id="complaint-section">
+    <h2 style="color:var(--primary-dark);margin-bottom:1rem">📝 File a Complaint</h2>
+    <div id="complaint-alert"></div>
+
+    <div class="form-group">
+      <label>COMPLAINT DESCRIPTION</label>
+      <textarea id="complaint-text" rows="4" placeholder="Write your complaint in detail..."
+        style="width:100%;border:1px solid var(--border,#d1d5db);border-radius:8px;padding:10px;font-size:14px;resize:vertical"></textarea>
+    </div>
+
+    <!-- Photo Upload with GPS -->
+    <div class="form-group">
+      <label>PHOTO (Optional)</label>
+      <div class="photo-dropzone" onclick="document.getElementById('complaint-photo').click()">
+        <div class="icon">📷</div>
+        <div>Add or upload a photo.</div>
+        <div style="font-size:12px;margin-top:4px">The GPS location will be captured automatically.</div>
+      </div>
+      <input type="file" id="complaint-photo" accept="image/*" capture="environment"
+        style="display:none" onchange="handlePhotoUpload(this)">
+
+      <!-- Photo Preview -->
+      <div class="photo-preview" id="photo-preview">
+        <img id="preview-img" src="" alt="Preview">
+        <button class="photo-remove" onclick="removePhoto()" title="Remove">✕</button>
+      </div>
+
+      <!-- GPS Status Badge -->
+      <div class="gps-badge" id="gps-badge">
+        <div class="gps-spinner" id="gps-spinner"></div>
+        <span id="gps-text">Location is detecting...</span>
+      </div>
+      <a class="map-link" id="map-link" href="#" target="_blank" style="display:none">
+        📍 See in Map
+      </a>
+    </div>
+
+    <button class="btn btn-primary btn-full" onclick="submitComplaint()">
+      🚀 Submit Complaint
+    </button>
+  </div>
+</div>
+
+<!-- ══ POPUP MODAL ══ -->
+<div class="popup-overlay" id="popup-overlay" onclick="closePopup(event)">
+  <div class="popup-box" id="popup-box">
+    <div class="popup-icon" id="popup-icon">⚠️</div>
+    <div class="popup-title" id="popup-title">Fake Email Detected!</div>
+    <p class="popup-msg" id="popup-msg">This is a temporary/fake email address.</p>
+    <div class="popup-actions" id="popup-actions">
+      <button class="popup-btn popup-btn-secondary" onclick="hidePopup()">✕ Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/main.js"></script>
+<script>
+  // ══ GPS State ══
+  let capturedLocation = null;
+
+  // ══ Auto redirect if already logged in ══
+  const user = getUser();
+  if (user && getToken()) {
+    if (user.role === 'admin') window.location.href = '/admin-dashboard.html';
+    else if (user.role === 'worker') window.location.href = '/worker-dashboard.html';
+    else window.location.href = '/user-dashboard.html';
+  }
+
+  // ══ Tab switching ══
+  function switchTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    const tabs = document.querySelectorAll('.auth-tab');
+    if (tab === 'login') tabs[0].classList.add('active');
+    else if (tab === 'register') tabs[1].classList.add('active');
+
+    document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
+    document.getElementById('register-form').classList.toggle('hidden', tab !== 'register');
+    document.getElementById('register-otp-form').classList.add('hidden');
+    document.getElementById('forgot-form').classList.add('hidden');
+    document.getElementById('otp-form').classList.add('hidden');
+    document.getElementById('auth-tabs').classList.remove('hidden');
+    document.getElementById('alert-box').innerHTML = '';
+  }
+
+  function showForgotPassword() {
+    document.getElementById('login-form').classList.add('hidden');
+    document.getElementById('register-form').classList.add('hidden');
+    document.getElementById('register-otp-form').classList.add('hidden');
+    document.getElementById('otp-form').classList.add('hidden');
+    document.getElementById('forgot-form').classList.remove('hidden');
+    document.getElementById('auth-tabs').classList.add('hidden');
+    document.getElementById('alert-box').innerHTML = '';
+  }
+
+  // ══ LOGIN ══
+  async function handleLogin(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.textContent = 'Logging in...';
+    btn.disabled = true;
+    try {
+      const data = await apiFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: document.getElementById('login-email').value,
+          password: document.getElementById('login-password').value
+        })
+      });
+      setAuth(data.token, data.user);
+      showAlert('alert-box', 'Login successful! Redirecting...', 'success');
+      setTimeout(() => {
+        if (data.user.role === 'admin') window.location.href = '/admin-dashboard.html';
+        else if (data.user.role === 'worker') window.location.href = '/worker-dashboard.html';
+        else window.location.href = '/user-dashboard.html';
+      }, 800);
+    } catch (err) {
+      showAlert('alert-box', err.message, 'error');
+      btn.textContent = 'Login';
+      btn.disabled = false;
+    }
+  }
+
+  // ══ REGISTER STEP 1 — Send OTP ══
+  async function handleSendRegisterOtp(e) {
+    e.preventDefault();
+
+    const btn = document.getElementById('reg-otp-btn');
+    const email = document.getElementById('reg-email').value.trim().toLowerCase();
+
+    // ── STEP A: Basic format check ──
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      showAlert('alert-box', 'Write Correct email format! (e.g. yourname@gmail.com)', 'error');
+      return;
+    }
+
+    const domain = email.split('@')[1] || '';
+
+    // ── STEP B: Fake/temp domain list ──
+    const FAKE = [
+      'tempmail.com','throwaway.email','guerrillamail.com','mailinator.com',
+      'yopmail.com','trashmail.com','fakeinbox.com','10minutemail.com',
+      'tempinbox.com','dispostable.com','sharklasers.com','spam4.me',
+      'maildrop.cc','discard.email','temp-mail.org','getnada.com',
+      'mailnull.com','mohmal.com','tempr.email','getairmail.com',
+      'filzmail.com','throwam.com','spamgourmet.com','trashmail.io',
+      'fakemailgenerator.com','mailscrap.com','spambox.us','tempemail.net',
+      'mailexpire.com','notmailinator.com','minuteinbox.com','tempinbox.net',
+      'mailnesia.com','spamgourmet.net','trashmail.me','trashmail.net',
+      'grr.la','10mail.org','yopmail.fr','mailinator2.com','discardmail.com',
+      'tmpmail.net','tempail.com','temporary-mail.net','throwammail.com',
+      'burnermail.io','mytrashmail.com','trashdevil.com','trashemail.de',
+      'trashmail.app','mailsac.com','emailondeck.com','trbvm.com',
+      'guerrillamailblock.com','spam.la','mt2009.com','mt2014.com',
+      'binkmail.com','wegwerfemail.com','wegwerfemail.de','zehnminuten.de',
+      'tempomail.fr','temporaryemail.com','tempsky.com','tmailinator.com',
+      'fakemailgenerator.net','fakeinbox.net','fakemail.net','fakemail.fr',
+      'fakemailz.com','tempmailid.com','fakemail.in','spammail.in',
+      'mailtemp.info','mailtemp.net','mailtemp.org','spamstack.net',
+      'spamspot.com','spamtrap.ro','owlpic.com','pookmail.com',
+      'spamfree24.org','trashmail.at','10minutemail.net','10minutemail.org',
+      'discardmail.de','tmpmail.org','tempalias.com','temporaryemail.net',
+      'trashdevil.de','spamgob.com','spamhole.com','spamify.com',
+      'suremail.info','spamhereplease.com','tradermail.info',
+      'zehnminutenmail.de','temporaryemail.org','tempthe.net','tilien.com',
+      'spamtrapped.com','quickinbox.com','objectmail.com','rcpt.at',
+      'spamgourmet.net','getairmail.com','trashmail.io','spamfree24.org'
+    ];
+
+    // ── STEP C: Suspicious keyword check ──
+    const BAD_KW = [
+      'temp','trash','spam','fake','throwaway','discard','junk',
+      'guerrilla','mailinator','yopmail','burner','disposable',
+      '10min','minutemail','trashmail','fakemail','spammail'
+    ];
+
+    // ── Run checks ──
+    if (FAKE.indexOf(domain) !== -1) {
+      showPopup('fake', '"' + domain + '"This is a temporary/fake email service. Please use a real email (Gmail, Yahoo, Outlook, Rediffmail etc.) ');
+      return;
+    }
+
+    for (var i = 0; i < BAD_KW.length; i++) {
+      if (domain.indexOf(BAD_KW[i]) !== -1) {
+        showPopup('fake', '"' + domain + '" It looks suspicious! Please use a real email. (Gmail, Yahoo, Outlook etc.)');
+        return;
+      }
+    }
+
+    // ── STEP D: All good — call server ──
+    btn.textContent = 'Sending OTP...';
+    btn.disabled = true;
+
+    try {
+      const data = await apiFetch('/auth/send-register-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      });
+      showAlert('alert-box', 'OTP sent to ' + email + '. Check the Inbox', 'success');
+      document.getElementById('register-form').classList.add('hidden');
+      document.getElementById('register-otp-form').classList.remove('hidden');
+      document.getElementById('reg-otp-info').textContent = 'OTP sent to ' + email + '. Please check your inbox.';
+    } catch (err) {
+      btn.textContent = '📧 Send OTP to Verify Email';
+      btn.disabled = false;
+      if (err.errorType === 'FAKE_EMAIL') {
+        showPopup('fake', err.message);
+      } else if (err.errorType === 'ALREADY_REGISTERED') {
+        showPopup('registered', err.message);
+      } else {
+        showAlert('alert-box', err.message || 'Something went wrong. Try Again!', 'error');
+      }
+    }
+  }
+
+  // ══ REGISTER STEP 2 — Verify OTP + Create Account ══
+  async function handleRegister(e) {
+    e.preventDefault();
+    const btn = document.getElementById('reg-verify-btn');
+    btn.textContent = 'Verifying...';
+    btn.disabled = true;
+    try {
+      const data = await apiFetch('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: document.getElementById('reg-name').value.trim(),
+          email: document.getElementById('reg-email').value.trim(),
+          password: document.getElementById('reg-password').value,
+          phone: document.getElementById('reg-phone').value.trim(),
+          address: document.getElementById('reg-address').value.trim(),
+          role: document.getElementById('reg-role').value,
+          otp: document.getElementById('reg-otp-input').value.trim()
+        })
+      });
+      setAuth(data.token, data.user);
+      showAlert('alert-box', '🎉 Account created! Redirecting...', 'success');
+      setTimeout(() => {
+        if (data.user.role === 'worker') window.location.href = '/worker-dashboard.html';
+        else window.location.href = '/user-dashboard.html';
+      }, 800);
+    } catch (err) {
+      showAlert('alert-box', err.message, 'error');
+      btn.textContent = '✅ Verify & Create Account';
+      btn.disabled = false;
+    }
+  }
+
+  // ══ FORGOT PASSWORD ══
+  async function handleForgotPassword(e) {
+    e.preventDefault();
+    const btn = document.getElementById('otp-send-btn');
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
+    try {
+      const data = await apiFetch('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email: document.getElementById('forgot-email').value })
+      });
+      showAlert('alert-box', '✅ ' + data.message, 'success');
+      document.getElementById('forgot-form').classList.add('hidden');
+      document.getElementById('otp-form').classList.remove('hidden');
+    } catch (err) {
+      showAlert('alert-box', err.message, 'error');
+      btn.textContent = '📧 Send OTP';
+      btn.disabled = false;
+    }
+  }
+
+  // ══ RESET PASSWORD ══
+  async function handleResetPassword(e) {
+    e.preventDefault();
+    const newPass = document.getElementById('new-password').value;
+    const confirmPass = document.getElementById('confirm-password').value;
+    if (newPass !== confirmPass) {
+      showAlert('alert-box', '❌ Both Password does not match!', 'error');
+      return;
+    }
+    const btn = document.getElementById('reset-btn');
+    btn.textContent = 'Resetting...';
+    btn.disabled = true;
+    try {
+      const data = await apiFetch('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: document.getElementById('forgot-email').value,
+          otp: document.getElementById('otp-input').value,
+          newPassword: newPass
+        })
+      });
+      showAlert('alert-box', '✅ ' + data.message, 'success');
+      setTimeout(() => switchTab('login'), 2000);
+    } catch (err) {
+      showAlert('alert-box', err.message, 'error');
+      btn.textContent = '🔐 Reset Password';
+      btn.disabled = false;
+    }
+  }
+
+  // ══════════════════════════════════════════
+  // PHOTO UPLOAD + AUTO GPS CAPTURE
+  // ══════════════════════════════════════════
+  function handlePhotoUpload(input) {
+    if (!input.files || !input.files[0]) return;
+
+    const file = input.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+      document.getElementById('preview-img').src = e.target.result;
+      document.getElementById('photo-preview').classList.add('show');
+    };
+    reader.readAsDataURL(file);
+
+    // Auto GPS capture when photo is selected
+    captureGPS();
+  }
+
+  function captureGPS() {
+    const badge = document.getElementById('gps-badge');
+    const spinner = document.getElementById('gps-spinner');
+    const text = document.getElementById('gps-text');
+    const mapLink = document.getElementById('map-link');
+
+    badge.className = 'gps-badge show';
+    spinner.style.display = 'block';
+    text.textContent = 'Location detecting...';
+    mapLink.style.display = 'none';
+
+    if (!navigator.geolocation) {
+      badge.className = 'gps-badge error show';
+      spinner.style.display = 'none';
+      text.textContent = '❌ GPS is not supporting in this browser.';
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      function(position) {
+        const lat = position.coords.latitude.toFixed(6);
+        const lng = position.coords.longitude.toFixed(6);
+        const acc = Math.round(position.coords.accuracy);
+
+        capturedLocation = { lat: parseFloat(lat), lng: parseFloat(lng), accuracy: acc };
+
+        spinner.style.display = 'none';
+        badge.className = 'gps-badge show';
+        text.textContent = `📍 ${lat}, ${lng} (±${acc}m)`;
+
+        // Show Google Maps link
+        mapLink.href = `https://www.google.com/maps?q=${lat},${lng}`;
+        mapLink.style.display = 'inline-flex';
+      },
+      function(error) {
+        spinner.style.display = 'none';
+        badge.className = 'gps-badge error show';
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            text.textContent = '❌ Location permission denied. Allow in Browser settings.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            text.textContent = '❌ Location unavailable. Check your GPS.';
+            break;
+          case error.TIMEOUT:
+            text.textContent = '❌ Location timeout. Try Again.';
+            break;
+          default:
+            text.textContent = '❌ Location does not detect.';
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+
+  function removePhoto() {
+    document.getElementById('complaint-photo').value = '';
+    document.getElementById('photo-preview').classList.remove('show');
+    document.getElementById('preview-img').src = '';
+    document.getElementById('gps-badge').className = 'gps-badge';
+    document.getElementById('map-link').style.display = 'none';
+    capturedLocation = null;
+  }
+
+  // ══ Popup Modal Functions ══
+  function showPopup(type, msg) {
+    const overlay = document.getElementById('popup-overlay');
+    const icon    = document.getElementById('popup-icon');
+    const title   = document.getElementById('popup-title');
+    const msgEl   = document.getElementById('popup-msg');
+    const actions = document.getElementById('popup-actions');
+
+    if (type === 'fake') {
+      icon.textContent = '🚫';
+      title.className = 'popup-title';
+      title.textContent = 'Fake Email Detected!';
+      msgEl.textContent = msg || 'This is a temporary/fake email service. Please use a real email. (Gmail, Yahoo, Outlook etc.)';
+      actions.innerHTML = `
+        <button class="popup-btn popup-btn-secondary" onclick="hidePopup()">✕ Close</button>
+        <button class="popup-btn popup-btn-primary" onclick="hidePopup(); document.getElementById('reg-email').focus()">✏️ Change Email</button>
+      `;
+    } else if (type === 'registered') {
+      icon.textContent = '👤';
+      title.className = 'popup-title already';
+      title.textContent = 'Email Already Registered!';
+      msgEl.textContent = msg || 'This email is already registered! Please log in or use a different email.';
+      actions.innerHTML = `
+        <button class="popup-btn popup-btn-secondary" onclick="hidePopup(); document.getElementById('reg-email').focus()">✏️ Enter a different email.</button>
+        <button class="popup-btn popup-btn-primary" onclick="hidePopup(); switchTab('login')">🔑 please login</button>
+        `;
+    }
+    overlay.classList.add('show');
+  }
+
+  function hidePopup() {
+    document.getElementById('popup-overlay').classList.remove('show');
+  }
+
+  function closePopup(e) {
+    // Close on overlay click (not on box click)
+    if (e.target === document.getElementById('popup-overlay')) hidePopup();
+  }
+
+  // ══ Submit Complaint ══
+  async function submitComplaint() {
+    const text = document.getElementById('complaint-text').value.trim();
+    if (!text) {
+      showAlert('complaint-alert', '❌ Complaint text is required!', 'error');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('description', text);
+
+    if (capturedLocation) {
+      formData.append('latitude', capturedLocation.lat);
+      formData.append('longitude', capturedLocation.lng);
+      formData.append('accuracy', capturedLocation.accuracy);
+    }
+
+    const photoFile = document.getElementById('complaint-photo').files[0];
+    if (photoFile) formData.append('photo', photoFile);
+
+    try {
+      const response = await fetch('/api/complaints', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + getToken() },
+        body: formData
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Error!');
+      showAlert('complaint-alert', '✅ Complaint has been submitted successfully!', 'success');
+      document.getElementById('complaint-text').value = '';
+      removePhoto();
+    } catch (err) {
+      showAlert('complaint-alert', err.message, 'error');
+    }
+  }
+</script>
+</body>
+</html>
