@@ -1,14 +1,16 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   }
 });
 
-const sendEmail = async (toEmail, template) => {
+async function sendEmail(toEmail, template) {
   try {
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       console.log('Email config missing');
@@ -26,7 +28,7 @@ const sendEmail = async (toEmail, template) => {
     console.error('❌ Email error:', err.message);
     return false;
   }
-};
+}
 
 const header = `
   <div style="background:#0a3d22;padding:20px 28px;text-align:center">
