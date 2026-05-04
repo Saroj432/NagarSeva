@@ -7,7 +7,7 @@ const sendEmail = async (toEmail, template) => {
         'api-key': process.env.BREVO_API_KEY
       },
       body: JSON.stringify({
-        sender: { name: 'NagarSeva', email: 'sarojkumarmahto432@gmail.com' },
+        sender: { name: 'NagarSeva', email: 'a9ff1e001@smtp-brevo.com' },
         to: [{ email: toEmail }],
         subject: template.subject,
         htmlContent: template.html
@@ -59,11 +59,11 @@ const notifyUserRegistered = async (user) => {
             </table>
           </div>
           <div style="background:#e3f2fd;border-radius:10px;padding:14px;margin-bottom:20px">
-            <p style="color:#0277bd;font-size:13px;margin:0">🚀 <strong>Ab aap kar sakte hain:</strong><br>
-            Garbage, drainage, road damage jaise issues report karein. AI instantly priority assign karega!</p>
+            <p style="color:#0277bd;font-size:13px;margin:0">🚀 <strong>What you can do:</strong><br>
+            Report garbage, drainage, and road damage issues. AI will instantly assign priority!</p>
           </div>
           <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin:0">
-            Agar aapne ye account nahi banaya toh is email ko ignore karein.
+            If you don't create an account, please ignore this email.
           </p>
         </div>
         ${footer}
@@ -87,7 +87,7 @@ const notifyComplaintSubmitted = async (user, complaint) => {
         <div style="padding:28px;background:#fff">
           <h2 style="color:#0a3d22;font-size:18px;margin:0 0 16px">Namaste ${user.name}! 🙏</h2>
           <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 20px">
-            Aapki complaint successfully register ho gayi hai. Hamari team jald hi is par dhyan degi.
+            Your complaint has been successfully registered. Our team will look into it shortly.
           </p>
           <div style="background:#f0fdf4;border:1px solid #a5d6a7;border-radius:12px;padding:18px;margin-bottom:20px">
             <p style="color:#2e7d32;font-size:12px;font-weight:700;text-transform:uppercase;margin:0 0 12px">📋 Complaint Details</p>
@@ -126,7 +126,7 @@ const notifyComplaintSubmitted = async (user, complaint) => {
             </div>
           </div>
           <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin:0">
-            Complaint status check karne ke liye portal mein login karein aur "My Complaints" section mein jayein.
+            To check the status of your complaint, please log in to the portal and navigate to the "My Complaints" section.
           </p>
         </div>
         ${footer}
@@ -138,15 +138,12 @@ const notifyComplaintSubmitted = async (user, complaint) => {
 const notifyComplaintStatusUpdate = async (user, complaint, newStatus) => {
   if (!user.email) return;
   const refId = complaint._id.toString().slice(-6).toUpperCase();
-
   const statusInfo = {
-    'assigned': { emoji: '👷', title: 'Worker Assigned!', msg: 'Aapki complaint ek field worker ko assign ho gayi hai. Kaam jald shuru hoga.', color: '#0277bd', bg: '#e3f2fd' },
-    'in-progress': { emoji: '🔧', title: 'Work Started!', msg: 'Hamara field worker aapki complaint par kaam kar raha hai.', color: '#f57f17', bg: '#fff8e1' },
+    'assigned': { emoji: '👷', title: 'Worker Assigned!', msg: 'Your complaint is assigned to a field worker.', color: '#0277bd', bg: '#e3f2fd' },
+    'in-progress': { emoji: '🔧', title: 'Work Started!', msg: 'Your field worker is working on your complaint.', color: '#f57f17', bg: '#fff8e1' },
   };
-
   const info = statusInfo[newStatus];
   if (!info) return;
-
   const template = {
     subject: `${info.emoji} Complaint Update — #${refId} NagarSeva`,
     html: `
@@ -171,7 +168,7 @@ const notifyComplaintStatusUpdate = async (user, complaint, newStatus) => {
             </table>
           </div>
           <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin:0">
-            Portal mein login karein aur "My Complaints" section mein jayein.
+            Log in to the portal to check the status of your complaint.
           </p>
         </div>
         ${footer}
@@ -184,7 +181,6 @@ const notifyComplaintResolved = async (user, complaint) => {
   if (!user.email) return;
   const refId = complaint._id.toString().slice(-6).toUpperCase();
   const resolvedDate = new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'long', year:'numeric' });
-
   const template = {
     subject: `🎉 Complaint Resolved! Ref #${refId} — NagarSeva`,
     html: `
@@ -196,7 +192,7 @@ const notifyComplaintResolved = async (user, complaint) => {
         </div>
         <div style="padding:28px;background:#fff">
           <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 20px">
-            Namaste <strong>${user.name}</strong>! Aapki complaint resolve ho gayi hai. Hamari team ne issue fix kar diya hai. Dhanyavaad aapke patience ke liye!
+            Namaste <strong>${user.name}</strong>! Your complaint has been resolved. Our team has fixed the issue. Thank you!
           </p>
           <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:12px;padding:18px;margin-bottom:20px">
             <p style="color:#2e7d32;font-size:12px;font-weight:700;text-transform:uppercase;margin:0 0 12px">✅ Resolution Details</p>
@@ -211,11 +207,11 @@ const notifyComplaintResolved = async (user, complaint) => {
             </table>
           </div>
           <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px;margin-bottom:20px;text-align:center">
-            <p style="color:#f57f17;font-size:14px;font-weight:600;margin:0 0 4px">⭐ Hamari service rate karein!</p>
-            <p style="color:#666;font-size:12px;margin:0">Portal mein login karein aur apna feedback dein.</p>
+            <p style="color:#f57f17;font-size:14px;font-weight:600;margin:0 0 4px">⭐ Rate our service!</p>
+            <p style="color:#666;font-size:12px;margin:0">Log in to the portal and share your feedback.</p>
           </div>
           <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin:0">
-            Aapki santushti hamari priority hai. Koi concern ho toh report karein!
+            Your satisfaction is our priority!
           </p>
         </div>
         ${footer}

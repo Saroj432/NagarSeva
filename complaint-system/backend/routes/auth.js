@@ -61,7 +61,7 @@ function isRealEmailDomain(email) {
     if (domain.includes(kw)) {
       return {
         valid: false,
-        reason: `"${domain}" It’s a suspicious email domain. Please use a real email.`
+        reason: `"${domain}" It’s a suspicious email domain. Please use a real email. (Gmail, Yahoo, Outlook, Rediffmail etc.)`
       };
     }
   }
@@ -85,7 +85,7 @@ async function sendOTPEmail(email, otp, purpose) {
       'api-key': process.env.BREVO_API_KEY
     },
     body: JSON.stringify({
-      sender: { name: 'NagarSeva', email: 'sarojkumarmahto432@gmail.com' },
+      sender: { name: 'NagarSeva', email: 'a9ff1e001@smtp-brevo.com' },
       to: [{ email: email }],
       subject: purpose === 'register' ? 'Email Verify Karo - NagarSeva' : 'Password Reset OTP - NagarSeva',
       htmlContent: `
@@ -98,10 +98,10 @@ async function sendOTPEmail(email, otp, purpose) {
           <p style="color:#555;font-size:14px">
             ${purpose === 'register'
               ? 'Please verify your email to register on NagarSeva.'
-              : 'Use this OTP to reset your password.'}
+              : 'To reset your password, please use the following OTP:'}
           </p>
           <div style="background:#fff;border-radius:10px;padding:1.5rem;text-align:center;margin:1.5rem 0;border:2px dashed #0a3d22">
-            <p style="color:#666;font-size:13px;margin:0 0 8px"> OTP Code:</p>
+            <p style="color:#666;font-size:13px;margin:0 0 8px">Your OTP Code:</p>
             <h1 style="color:#0a3d22;font-size:3rem;letter-spacing:0.5em;margin:0;font-family:monospace">${otp}</h1>
           </div>
           <div style="background:#fff3cd;border-radius:8px;padding:10px 14px;margin-bottom:1rem">
@@ -116,7 +116,7 @@ async function sendOTPEmail(email, otp, purpose) {
 router.post('/send-register-otp', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Email is required!' });
+    if (!email) return res.status(400).json({ message: 'Email required!' });
     if (!isValidEmailFormat(email)) {
       return res.status(400).json({ message: 'Invalid email format!' });
     }
@@ -126,7 +126,7 @@ router.post('/send-register-otp', async (req, res) => {
     }
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) {
-      return res.status(400).json({ errorType: 'ALREADY_REGISTERED', exists: true, message: 'This email is already registered!' });
+      return res.status(400).json({ errorType: 'ALREADY_REGISTERED', exists: true, message: 'Email already registered!' });
     }
     const otp = crypto.randomInt(100000, 999999).toString();
     otpStore[email.toLowerCase()] = { otp, expires: Date.now() + 10 * 60 * 1000 };
@@ -152,7 +152,7 @@ router.post('/register', async (req, res) => {
     const existingPhone = await User.findOne({ phone: cleaned });
     if (existingPhone) return res.status(400).json({ message: 'This phone number is already registered!' });
     const existingEmail = await User.findOne({ email: emailLower });
-    if (existingEmail) return res.status(400).json({ message: 'This email is already registered!' });
+    if (existingEmail) return res.status(400).json({ message: 'Email already registered!' });
     const userRole = ['user', 'worker'].includes(role) ? role : 'user';
     const user = new User({ name, email: emailLower, password, phone: cleaned, address, role: userRole });
     await user.save();
@@ -190,30 +190,4 @@ router.post('/forgot-password', async (req, res) => {
     if (!user) return res.status(404).json({ message: 'This email is not registered!' });
     const otp = crypto.randomInt(100000, 999999).toString();
     otpStore[email.toLowerCase()] = { otp, expires: Date.now() + 10 * 60 * 1000 };
-    await sendOTPEmail(email, otp, 'reset');
-    res.json({ message: 'OTP has been sent to your email!' });
-  } catch (err) {
-    res.status(500).json({ message: 'Error: ' + err.message });
-  }
-});
-
-router.post('/reset-password', async (req, res) => {
-  try {
-    const { email, otp, newPassword } = req.body;
-    const emailLower = email.toLowerCase();
-    const stored = otpStore[emailLower];
-    if (!stored) return res.status(400).json({ message: 'OTP not found.' });
-    if (Date.now() > stored.expires) { delete otpStore[emailLower]; return res.status(400).json({ message: 'OTP has expired.' }); }
-    if (stored.otp !== otp) return res.status(400).json({ message: 'Invalid OTP.' });
-    const user = await User.findOne({ email: emailLower });
-    if (!user) return res.status(404).json({ message: 'User not found.' });
-    user.password = newPassword;
-    await user.save();
-    delete otpStore[emailLower];
-    res.json({ message: 'Password reset successfully! Please login.' });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
-});
-
-module.exports = router;
+    await sendOTPEmail(email, otp, 'forgot-password');
