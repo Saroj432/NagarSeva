@@ -49,7 +49,7 @@ function isRealEmailDomain(email) {
   if (BLOCKED_DOMAINS.has(domain)) {
     return {
       valid: false,
-      reason: `"${domain}" ek temporary/fake email service hai! Real email use karein (Gmail, Yahoo, Outlook, Rediffmail etc.)`
+      reason: `"${domain}" It’s a temporary/fake email service. Please use a real email. (Gmail, Yahoo, Outlook, Rediffmail etc.)`
     };
   }
   const suspiciousKeywords = [
@@ -61,7 +61,7 @@ function isRealEmailDomain(email) {
     if (domain.includes(kw)) {
       return {
         valid: false,
-        reason: `"${domain}" suspicious lag raha hai! Real email use karein.`
+        reason: `"${domain}" It’s a suspicious email domain. Please use a real email.`
       };
     }
   }
@@ -97,17 +97,17 @@ async function sendOTPEmail(email, otp, purpose) {
           <h3 style="color:#0a3d22">${purpose === 'register' ? 'Email Verification' : 'Password Reset'}</h3>
           <p style="color:#555;font-size:14px">
             ${purpose === 'register'
-              ? 'NagarSeva mein register karne ke liye apna email verify karein.'
-              : 'Apna password reset karne ke liye ye OTP use karein.'}
+              ? 'Please verify your email to register on NagarSeva.'
+              : 'Use this OTP to reset your password.'}
           </p>
           <div style="background:#fff;border-radius:10px;padding:1.5rem;text-align:center;margin:1.5rem 0;border:2px dashed #0a3d22">
-            <p style="color:#666;font-size:13px;margin:0 0 8px">Aapka OTP Code:</p>
+            <p style="color:#666;font-size:13px;margin:0 0 8px"> OTP Code:</p>
             <h1 style="color:#0a3d22;font-size:3rem;letter-spacing:0.5em;margin:0;font-family:monospace">${otp}</h1>
           </div>
           <div style="background:#fff3cd;border-radius:8px;padding:10px 14px;margin-bottom:1rem">
-            <p style="color:#856404;font-size:13px;margin:0">Ye OTP <strong>10 minutes</strong> mein expire ho jaayega.</p>
+            <p style="color:#856404;font-size:13px;margin:0">This OTP will expire in <strong>10 minutes</strong>.</p>
           </div>
-          <p style="color:#999;font-size:12px">Agar aapne ye request nahi ki toh is email ko ignore karein.</p>
+          <p style="color:#999;font-size:12px">If you did not request this, please ignore this email.</p>
         </div>`
     })
   });
@@ -116,7 +116,7 @@ async function sendOTPEmail(email, otp, purpose) {
 router.post('/send-register-otp', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Email daalna zaroori hai!' });
+    if (!email) return res.status(400).json({ message: 'Email is required!' });
     if (!isValidEmailFormat(email)) {
       return res.status(400).json({ message: 'Invalid email format!' });
     }
@@ -126,12 +126,12 @@ router.post('/send-register-otp', async (req, res) => {
     }
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) {
-      return res.status(400).json({ errorType: 'ALREADY_REGISTERED', exists: true, message: 'Ye email already registered hai!' });
+      return res.status(400).json({ errorType: 'ALREADY_REGISTERED', exists: true, message: 'This email is already registered!' });
     }
     const otp = crypto.randomInt(100000, 999999).toString();
     otpStore[email.toLowerCase()] = { otp, expires: Date.now() + 10 * 60 * 1000 };
     await sendOTPEmail(email, otp, 'register');
-    res.json({ message: `OTP ${email} pe bheja gaya! Inbox check karein.`, otpSent: true });
+    res.json({ message: `OTP sent to ${email}! Please check your inbox.`, otpSent: true });
   } catch (err) {
     console.error('send-register-otp error:', err);
     res.status(500).json({ message: 'Server error: ' + err.message });
@@ -143,16 +143,16 @@ router.post('/register', async (req, res) => {
     const { name, email, password, phone, address, role, otp } = req.body;
     const emailLower = email.toLowerCase();
     const stored = otpStore[emailLower];
-    if (!stored) return res.status(400).json({ message: 'OTP nahi mila. Pehle email verify karein.' });
-    if (Date.now() > stored.expires) { delete otpStore[emailLower]; return res.status(400).json({ message: 'OTP expire ho gaya. Dobara try karein.' }); }
-    if (stored.otp !== otp) return res.status(400).json({ message: 'Galat OTP! Dobara check karein.' });
-    if (!phone) return res.status(400).json({ message: 'Phone number zaroori hai!' });
+    if (!stored) return res.status(400).json({ message: 'OTP not found. Please verify your email first.' });
+    if (Date.now() > stored.expires) { delete otpStore[emailLower]; return res.status(400).json({ message: 'OTP has expired. Please try again.' }); }
+    if (stored.otp !== otp) return res.status(400).json({ message: 'Invalid OTP! Please check again.' });
+    if (!phone) return res.status(400).json({ message: 'Phone number is required!' });
     if (!isValidIndianPhone(phone)) return res.status(400).json({ message: 'Invalid phone number!' });
     const cleaned = cleanPhone(phone);
     const existingPhone = await User.findOne({ phone: cleaned });
-    if (existingPhone) return res.status(400).json({ message: 'Ye phone number already registered hai!' });
+    if (existingPhone) return res.status(400).json({ message: 'This phone number is already registered!' });
     const existingEmail = await User.findOne({ email: emailLower });
-    if (existingEmail) return res.status(400).json({ message: 'Email already registered hai!' });
+    if (existingEmail) return res.status(400).json({ message: 'This email is already registered!' });
     const userRole = ['user', 'worker'].includes(role) ? role : 'user';
     const user = new User({ name, email: emailLower, password, phone: cleaned, address, role: userRole });
     await user.save();
@@ -168,11 +168,11 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Email aur password dono zaroori hain!' });
+    if (!email || !password) return res.status(400).json({ message: 'Email and password are required!' });
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(400).json({ message: 'Email ya password galat hai.' });
+    if (!user) return res.status(400).json({ message: 'Invalid email or password.' });
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(400).json({ message: 'Email ya password galat hai.' });
+    if (!isMatch) return res.status(400).json({ message: 'Invalid email or password.' });
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
@@ -187,11 +187,11 @@ router.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
     if (!isValidEmailFormat(email)) return res.status(400).json({ message: 'Invalid email format!' });
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(404).json({ message: 'Ye email registered nahi hai!' });
+    if (!user) return res.status(404).json({ message: 'This email is not registered!' });
     const otp = crypto.randomInt(100000, 999999).toString();
     otpStore[email.toLowerCase()] = { otp, expires: Date.now() + 10 * 60 * 1000 };
     await sendOTPEmail(email, otp, 'reset');
-    res.json({ message: 'OTP aapki email pe bheja gaya!' });
+    res.json({ message: 'OTP has been sent to your email!' });
   } catch (err) {
     res.status(500).json({ message: 'Error: ' + err.message });
   }
@@ -202,15 +202,15 @@ router.post('/reset-password', async (req, res) => {
     const { email, otp, newPassword } = req.body;
     const emailLower = email.toLowerCase();
     const stored = otpStore[emailLower];
-    if (!stored) return res.status(400).json({ message: 'OTP nahi mila.' });
-    if (Date.now() > stored.expires) { delete otpStore[emailLower]; return res.status(400).json({ message: 'OTP expire ho gaya.' }); }
-    if (stored.otp !== otp) return res.status(400).json({ message: 'Galat OTP.' });
+    if (!stored) return res.status(400).json({ message: 'OTP not found.' });
+    if (Date.now() > stored.expires) { delete otpStore[emailLower]; return res.status(400).json({ message: 'OTP has expired.' }); }
+    if (stored.otp !== otp) return res.status(400).json({ message: 'Invalid OTP.' });
     const user = await User.findOne({ email: emailLower });
-    if (!user) return res.status(404).json({ message: 'User nahi mila.' });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
     user.password = newPassword;
     await user.save();
     delete otpStore[emailLower];
-    res.json({ message: 'Password reset ho gaya! Ab login karein.' });
+    res.json({ message: 'Password reset successfully! Please login.' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
