@@ -49,7 +49,7 @@ function isRealEmailDomain(email) {
   if (BLOCKED_DOMAINS.has(domain)) {
     return {
       valid: false,
-      reason: `"${domain}" It’s a temporary/fake email service. Please use a real email. (Gmail, Yahoo, Outlook, Rediffmail etc.)`
+      reason: `"${domain}" It’s a temporary/fake email service. Please use a real email.(Gmail, Yahoo, Outlook, Rediffmail etc.)`
     };
   }
   const suspiciousKeywords = [
@@ -61,7 +61,7 @@ function isRealEmailDomain(email) {
     if (domain.includes(kw)) {
       return {
         valid: false,
-        reason: `"${domain}" It’s a suspicious email domain. Please use a real email. (Gmail, Yahoo, Outlook, Rediffmail etc.)`
+        reason: `"${domain}" It’s a temporary/fake email service. Please use a real email.(Gmail, Yahoo, Outlook, Rediffmail etc.)`
       };
     }
   }
@@ -97,8 +97,8 @@ async function sendOTPEmail(email, otp, purpose) {
           <h3 style="color:#0a3d22">${purpose === 'register' ? 'Email Verification' : 'Password Reset'}</h3>
           <p style="color:#555;font-size:14px">
             ${purpose === 'register'
-              ? 'Please verify your email to register on NagarSeva.'
-              : 'To reset your password, please use the following OTP:'}
+              ? 'To verify your email, please enter the OTP sent to your inbox.'
+              : 'To reset your password, please enter the OTP sent to your inbox.'}
           </p>
           <div style="background:#fff;border-radius:10px;padding:1.5rem;text-align:center;margin:1.5rem 0;border:2px dashed #0a3d22">
             <p style="color:#666;font-size:13px;margin:0 0 8px">Your OTP Code:</p>
@@ -145,7 +145,7 @@ router.post('/register', async (req, res) => {
     const stored = otpStore[emailLower];
     if (!stored) return res.status(400).json({ message: 'OTP not found. Please verify your email first.' });
     if (Date.now() > stored.expires) { delete otpStore[emailLower]; return res.status(400).json({ message: 'OTP has expired. Please try again.' }); }
-    if (stored.otp !== otp) return res.status(400).json({ message: 'Invalid OTP! Please check again.' });
+    if (stored.otp !== otp) return res.status(400).json({ message: 'Invalid OTP! Please check your OTP.' });
     if (!phone) return res.status(400).json({ message: 'Phone number is required!' });
     if (!isValidIndianPhone(phone)) return res.status(400).json({ message: 'Invalid phone number!' });
     const cleaned = cleanPhone(phone);
@@ -187,7 +187,33 @@ router.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
     if (!isValidEmailFormat(email)) return res.status(400).json({ message: 'Invalid email format!' });
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(404).json({ message: 'This email is not registered!' });
+    if (!user) return res.status(404).json({ message: 'Email not registered!' });
     const otp = crypto.randomInt(100000, 999999).toString();
     otpStore[email.toLowerCase()] = { otp, expires: Date.now() + 10 * 60 * 1000 };
-    await sendOTPEmail(email, otp, 'forgot-password');
+    await sendOTPEmail(email, otp, 'reset');
+    res.json({ message: 'OTP sent to your email!' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error: ' + err.message });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    const emailLower = email.toLowerCase();
+    const stored = otpStore[emailLower];
+    if (!stored) return res.status(400).json({ message: 'OTP not found.' });
+    if (Date.now() > stored.expires) { delete otpStore[emailLower]; return res.status(400).json({ message: 'OTP has expired.' }); }
+    if (stored.otp !== otp) return res.status(400).json({ message: 'Invalid OTP.' });
+    const user = await User.findOne({ email: emailLower });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    user.password = newPassword;
+    await user.save();
+    delete otpStore[emailLower];
+    res.json({ message: 'Password reset successfully! Please login.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+module.exports = router;
