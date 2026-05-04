@@ -59,11 +59,11 @@ const notifyUserRegistered = async (user) => {
             </table>
           </div>
           <div style="background:#e3f2fd;border-radius:10px;padding:14px;margin-bottom:20px">
-            <p style="color:#0277bd;font-size:13px;margin:0">🚀 <strong>Know you can do:</strong><br>
-            Report issues like garbage, drainage, and road damage. AI will instantly assign priority!</p>
+            <p style="color:#0277bd;font-size:13px;margin:0">🚀 <strong>Ab aap kar sakte hain:</strong><br>
+            Garbage, drainage, road damage jaise issues report karein. AI instantly priority assign karega!</p>
           </div>
           <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin:0">
-            If you did not create this account, please ignore this email.
+            Agar aapne ye account nahi banaya toh is email ko ignore karein.
           </p>
         </div>
         ${footer}
@@ -87,7 +87,7 @@ const notifyComplaintSubmitted = async (user, complaint) => {
         <div style="padding:28px;background:#fff">
           <h2 style="color:#0a3d22;font-size:18px;margin:0 0 16px">Namaste ${user.name}! 🙏</h2>
           <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 20px">
-            Your complaint has been registered successfully. Our team will look into it shortly.
+            Aapki complaint successfully register ho gayi hai. Hamari team jald hi is par dhyan degi.
           </p>
           <div style="background:#f0fdf4;border:1px solid #a5d6a7;border-radius:12px;padding:18px;margin-bottom:20px">
             <p style="color:#2e7d32;font-size:12px;font-weight:700;text-transform:uppercase;margin:0 0 12px">📋 Complaint Details</p>
@@ -101,8 +101,32 @@ const notifyComplaintSubmitted = async (user, complaint) => {
               </tr>
             </table>
           </div>
+          <div style="background:#f8f9fa;border-radius:10px;padding:14px;margin-bottom:20px">
+            <p style="color:#555;font-size:12px;font-weight:700;text-transform:uppercase;margin:0 0 10px">📊 Current Status</p>
+            <div style="display:flex;align-items:center">
+              <div style="text-align:center;flex:1">
+                <div style="width:28px;height:28px;background:#0a3d22;border-radius:50%;margin:0 auto 4px;color:#fff;font-size:12px;line-height:28px;text-align:center">✓</div>
+                <p style="font-size:10px;color:#0a3d22;font-weight:700;margin:0">Submitted</p>
+              </div>
+              <div style="flex:1;height:2px;background:#e0e0e0;margin-bottom:16px"></div>
+              <div style="text-align:center;flex:1">
+                <div style="width:28px;height:28px;background:#e0e0e0;border-radius:50%;margin:0 auto 4px;color:#999;font-size:12px;line-height:28px;text-align:center">👷</div>
+                <p style="font-size:10px;color:#999;margin:0">Assigned</p>
+              </div>
+              <div style="flex:1;height:2px;background:#e0e0e0;margin-bottom:16px"></div>
+              <div style="text-align:center;flex:1">
+                <div style="width:28px;height:28px;background:#e0e0e0;border-radius:50%;margin:0 auto 4px;color:#999;font-size:12px;line-height:28px;text-align:center">🔧</div>
+                <p style="font-size:10px;color:#999;margin:0">In Progress</p>
+              </div>
+              <div style="flex:1;height:2px;background:#e0e0e0;margin-bottom:16px"></div>
+              <div style="text-align:center;flex:1">
+                <div style="width:28px;height:28px;background:#e0e0e0;border-radius:50%;margin:0 auto 4px;color:#999;font-size:12px;line-height:28px;text-align:center">✅</div>
+                <p style="font-size:10px;color:#999;margin:0">Resolved</p>
+              </div>
+            </div>
+          </div>
           <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin:0">
-            To Check your complaint status, please login to the portal and go to "My Complaints" section.
+            Complaint status check karne ke liye portal mein login karein aur "My Complaints" section mein jayein.
           </p>
         </div>
         ${footer}
@@ -116,8 +140,8 @@ const notifyComplaintStatusUpdate = async (user, complaint, newStatus) => {
   const refId = complaint._id.toString().slice(-6).toUpperCase();
 
   const statusInfo = {
-    'assigned': { emoji: '👷', title: 'Worker Assigned!', msg: 'Your complaint has been assigned to a field worker. Work will start soon.', color: '#0277bd', bg: '#e3f2fd' },
-    'in-progress': { emoji: '🔧', title: 'Work Started!', msg: 'Our field worker is working on your complaint.', color: '#f57f17', bg: '#fff8e1' },
+    'assigned': { emoji: '👷', title: 'Worker Assigned!', msg: 'Aapki complaint ek field worker ko assign ho gayi hai. Kaam jald shuru hoga.', color: '#0277bd', bg: '#e3f2fd' },
+    'in-progress': { emoji: '🔧', title: 'Work Started!', msg: 'Hamara field worker aapki complaint par kaam kar raha hai.', color: '#f57f17', bg: '#fff8e1' },
   };
 
   const info = statusInfo[newStatus];
@@ -136,8 +160,18 @@ const notifyComplaintStatusUpdate = async (user, complaint, newStatus) => {
           <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 20px">
             Namaste <strong>${user.name}</strong>! ${info.msg}
           </p>
+          <div style="background:#f0fdf4;border:1px solid #a5d6a7;border-radius:12px;padding:18px;margin-bottom:20px">
+            <table style="width:100%;font-size:14px;border-collapse:collapse">
+              <tr><td style="color:#666;padding:5px 0;width:40%">Reference ID</td><td style="color:#0a3d22;font-weight:700">#${refId}</td></tr>
+              <tr><td style="color:#666;padding:5px 0">Complaint</td><td style="color:#333;font-weight:600">${complaint.title}</td></tr>
+              <tr><td style="color:#666;padding:5px 0">New Status</td>
+                <td><span style="background:${info.bg};color:${info.color};padding:3px 12px;border-radius:100px;font-weight:700;font-size:12px;text-transform:uppercase">${newStatus.replace('-',' ')}</span></td>
+              </tr>
+              ${complaint.assignedWorker ? `<tr><td style="color:#666;padding:5px 0">Worker</td><td style="color:#333">${complaint.assignedWorker.name || ''}</td></tr>` : ''}
+            </table>
+          </div>
           <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin:0">
-            Login to the portal and go to "My Complaints" section to check your complaint status.
+            Portal mein login karein aur "My Complaints" section mein jayein.
           </p>
         </div>
         ${footer}
@@ -162,10 +196,26 @@ const notifyComplaintResolved = async (user, complaint) => {
         </div>
         <div style="padding:28px;background:#fff">
           <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 20px">
-            Namaste <strong>${user.name}</strong>! Your complaint has been resolved. Thank you for your patience!
+            Namaste <strong>${user.name}</strong>! Aapki complaint resolve ho gayi hai. Hamari team ne issue fix kar diya hai. Dhanyavaad aapke patience ke liye!
           </p>
+          <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:12px;padding:18px;margin-bottom:20px">
+            <p style="color:#2e7d32;font-size:12px;font-weight:700;text-transform:uppercase;margin:0 0 12px">✅ Resolution Details</p>
+            <table style="width:100%;font-size:14px;border-collapse:collapse">
+              <tr><td style="color:#666;padding:5px 0;width:40%">Reference ID</td><td style="color:#0a3d22;font-weight:700">#${refId}</td></tr>
+              <tr><td style="color:#666;padding:5px 0">Complaint</td><td style="color:#333;font-weight:600">${complaint.title}</td></tr>
+              <tr><td style="color:#666;padding:5px 0">Resolved On</td><td style="color:#333">${resolvedDate}</td></tr>
+              <tr><td style="color:#666;padding:5px 0">Status</td>
+                <td><span style="background:#e8f5e9;color:#2e7d32;padding:3px 12px;border-radius:100px;font-weight:700;font-size:12px">RESOLVED ✓</span></td>
+              </tr>
+              ${complaint.workerNotes ? `<tr><td style="color:#666;padding:5px 0">Worker Notes</td><td style="color:#555">${complaint.workerNotes}</td></tr>` : ''}
+            </table>
+          </div>
+          <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px;margin-bottom:20px;text-align:center">
+            <p style="color:#f57f17;font-size:14px;font-weight:600;margin:0 0 4px">⭐ Hamari service rate karein!</p>
+            <p style="color:#666;font-size:12px;margin:0">Portal mein login karein aur apna feedback dein.</p>
+          </div>
           <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin:0">
-            Your satisfaction is our priority. If you have any concerns, please report them!
+            Aapki santushti hamari priority hai. Koi concern ho toh report karein!
           </p>
         </div>
         ${footer}
