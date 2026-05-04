@@ -1,34 +1,31 @@
-const nodemailer = require('nodemailer');
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
-async function sendEmail(toEmail, template) {
+const sendEmail = async (toEmail, template) => {
   try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.log('Email config missing');
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': process.env.BREVO_API_KEY
+      },
+      body: JSON.stringify({
+        sender: { name: 'NagarSeva', email: 'sarojkumarmahto432@gmail.com' },
+        to: [{ email: toEmail }],
+        subject: template.subject,
+        htmlContent: template.html
+      })
+    });
+    if (response.ok) {
+      console.log(`✅ Email sent to ${toEmail}`);
+      return true;
+    } else {
+      const err = await response.json();
+      console.error('❌ Email error:', err);
       return false;
     }
-    await transporter.sendMail({
-      from: `"NagarSeva 🏛️" <${process.env.EMAIL_USER}>`,
-      to: toEmail,
-      subject: template.subject,
-      html: template.html
-    });
-    console.log(`✅ Email sent to ${toEmail}`);
-    return true;
   } catch (err) {
     console.error('❌ Email error:', err.message);
     return false;
   }
-}
+};
 
 const header = `
   <div style="background:#0a3d22;padding:20px 28px;text-align:center">
@@ -104,30 +101,6 @@ const notifyComplaintSubmitted = async (user, complaint) => {
               </tr>
             </table>
           </div>
-          <div style="background:#f8f9fa;border-radius:10px;padding:14px;margin-bottom:20px">
-            <p style="color:#555;font-size:12px;font-weight:700;text-transform:uppercase;margin:0 0 10px">📊 Current Status</p>
-            <div style="display:flex;align-items:center">
-              <div style="text-align:center;flex:1">
-                <div style="width:28px;height:28px;background:#0a3d22;border-radius:50%;margin:0 auto 4px;color:#fff;font-size:12px;line-height:28px;text-align:center">✓</div>
-                <p style="font-size:10px;color:#0a3d22;font-weight:700;margin:0">Submitted</p>
-              </div>
-              <div style="flex:1;height:2px;background:#e0e0e0;margin-bottom:16px"></div>
-              <div style="text-align:center;flex:1">
-                <div style="width:28px;height:28px;background:#e0e0e0;border-radius:50%;margin:0 auto 4px;color:#999;font-size:12px;line-height:28px;text-align:center">👷</div>
-                <p style="font-size:10px;color:#999;margin:0">Assigned</p>
-              </div>
-              <div style="flex:1;height:2px;background:#e0e0e0;margin-bottom:16px"></div>
-              <div style="text-align:center;flex:1">
-                <div style="width:28px;height:28px;background:#e0e0e0;border-radius:50%;margin:0 auto 4px;color:#999;font-size:12px;line-height:28px;text-align:center">🔧</div>
-                <p style="font-size:10px;color:#999;margin:0">In Progress</p>
-              </div>
-              <div style="flex:1;height:2px;background:#e0e0e0;margin-bottom:16px"></div>
-              <div style="text-align:center;flex:1">
-                <div style="width:28px;height:28px;background:#e0e0e0;border-radius:50%;margin:0 auto 4px;color:#999;font-size:12px;line-height:28px;text-align:center">✅</div>
-                <p style="font-size:10px;color:#999;margin:0">Resolved</p>
-              </div>
-            </div>
-          </div>
           <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin:0">
             To Check your complaint status, please login to the portal and go to "My Complaints" section.
           </p>
@@ -163,16 +136,6 @@ const notifyComplaintStatusUpdate = async (user, complaint, newStatus) => {
           <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 20px">
             Namaste <strong>${user.name}</strong>! ${info.msg}
           </p>
-          <div style="background:#f0fdf4;border:1px solid #a5d6a7;border-radius:12px;padding:18px;margin-bottom:20px">
-            <table style="width:100%;font-size:14px;border-collapse:collapse">
-              <tr><td style="color:#666;padding:5px 0;width:40%">Reference ID</td><td style="color:#0a3d22;font-weight:700">#${refId}</td></tr>
-              <tr><td style="color:#666;padding:5px 0">Complaint</td><td style="color:#333;font-weight:600">${complaint.title}</td></tr>
-              <tr><td style="color:#666;padding:5px 0">New Status</td>
-                <td><span style="background:${info.bg};color:${info.color};padding:3px 12px;border-radius:100px;font-weight:700;font-size:12px;text-transform:uppercase">${newStatus.replace('-',' ')}</span></td>
-              </tr>
-              ${complaint.assignedWorker ? `<tr><td style="color:#666;padding:5px 0">Worker</td><td style="color:#333">${complaint.assignedWorker.name || ''}</td></tr>` : ''}
-            </table>
-          </div>
           <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin:0">
             Login to the portal and go to "My Complaints" section to check your complaint status.
           </p>
@@ -199,24 +162,8 @@ const notifyComplaintResolved = async (user, complaint) => {
         </div>
         <div style="padding:28px;background:#fff">
           <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 20px">
-            Namaste <strong>${user.name}</strong>! Your complaint has been resolved. Our team has fixed the issue. Thank you for your patience!
+            Namaste <strong>${user.name}</strong>! Your complaint has been resolved. Thank you for your patience!
           </p>
-          <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:12px;padding:18px;margin-bottom:20px">
-            <p style="color:#2e7d32;font-size:12px;font-weight:700;text-transform:uppercase;margin:0 0 12px">✅ Resolution Details</p>
-            <table style="width:100%;font-size:14px;border-collapse:collapse">
-              <tr><td style="color:#666;padding:5px 0;width:40%">Reference ID</td><td style="color:#0a3d22;font-weight:700">#${refId}</td></tr>
-              <tr><td style="color:#666;padding:5px 0">Complaint</td><td style="color:#333;font-weight:600">${complaint.title}</td></tr>
-              <tr><td style="color:#666;padding:5px 0">Resolved On</td><td style="color:#333">${resolvedDate}</td></tr>
-              <tr><td style="color:#666;padding:5px 0">Status</td>
-                <td><span style="background:#e8f5e9;color:#2e7d32;padding:3px 12px;border-radius:100px;font-weight:700;font-size:12px">RESOLVED ✓</span></td>
-              </tr>
-              ${complaint.workerNotes ? `<tr><td style="color:#666;padding:5px 0">Worker Notes</td><td style="color:#555">${complaint.workerNotes}</td></tr>` : ''}
-            </table>
-          </div>
-          <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px;margin-bottom:20px;text-align:center">
-            <p style="color:#f57f17;font-size:14px;font-weight:600;margin:0 0 4px">⭐ Rate our service!</p>
-            <p style="color:#666;font-size:12px;margin:0">Login to the portal and provide your feedback.</p>
-          </div>
           <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:16px;margin:0">
             Your satisfaction is our priority. If you have any concerns, please report them!
           </p>
