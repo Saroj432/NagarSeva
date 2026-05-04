@@ -85,7 +85,7 @@ async function sendOTPEmail(email, otp, purpose) {
       'api-key': process.env.BREVO_API_KEY
     },
     body: JSON.stringify({
-      sender: { name: 'NagarSeva', email: 'a9ff1e001@smtp-brevo.com' },
+      sender: { name: 'NagarSeva', email: 'sarojkumarmahto432@gmail.com' },
       to: [{ email: email }],
       subject: purpose === 'register' ? 'Email Verify Karo - NagarSeva' : 'Password Reset OTP - NagarSeva',
       htmlContent: `
