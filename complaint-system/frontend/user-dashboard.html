@@ -393,25 +393,51 @@ function applyImageAnalysis(title, category) {
 }
 
 // ══ VOICE INPUT ══
+// == VOICE INPUT ==
 function toggleVoice() {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
     alert('Voice input is only available in Chrome!');
     return;
   }
   if (isRecording) { recognition.stop(); return; }
+  
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
-  recognition.lang = 'hi-IN';
+  recognition.lang = 'hi-IN';  // Hindi + English dono support
   recognition.continuous = false;
   recognition.interimResults = true;
+  
   var btn = document.getElementById('voice-btn');
   btn.classList.add('recording');
-  btn.textContent = 'Recording...';
+  btn.textContent = '🔴 Recording...';
+  btn.style.color = 'red';
   isRecording = true;
+  
   recognition.onresult = function(event) {
-    document.getElementById('c-description').value = Array.from(event.results).map(function(r) { return r[0].transcript; }).join('');
+    var transcript = Array.from(event.results)
+      .map(function(r) { return r[0].transcript; })
+      .join('');
+    document.getElementById('c-description').value = transcript;
   };
-  recognition.onend = function() { btn.classList.remove('recording'); btn.textContent = 'Voice Input'; isRecording = false; };
+  
+  recognition.onerror = function(event) {
+    console.error('Voice error:', event.error);
+    btn.classList.remove('recording');
+    btn.textContent = '🎤 Voice Input';
+    btn.style.color = '';
+    isRecording = false;
+    if (event.error === 'not-allowed') {
+      alert('Microphone permission denied! Browser settings mein allow karein.');
+    }
+  };
+  
+  recognition.onend = function() {
+    btn.classList.remove('recording');
+    btn.textContent = '🎤 Voice Input';
+    btn.style.color = '';
+    isRecording = false;
+  };
+  
   recognition.start();
 }
 
