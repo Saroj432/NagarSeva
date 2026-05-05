@@ -173,7 +173,7 @@
       </div>`;
     }).join('');
 
-    // Init mini maps after render
+    // Init mini maps 
     setTimeout(() => {
       data.forEach(c => {
         if (!c.location?.coordinates?.lat || !c.location?.coordinates?.lng) return;
