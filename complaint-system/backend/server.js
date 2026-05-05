@@ -7,6 +7,13 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const app = express();
 
 app.use(cors());
+// Security headers for mobile browsers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
