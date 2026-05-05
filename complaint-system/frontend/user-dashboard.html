@@ -187,7 +187,8 @@
           <textarea id="c-description" rows="3" placeholder="Describe the problem..." required></textarea>
           <div class="ai-toolbar">
             <button type="button" class="ai-tool-btn" onclick="improveDescription()">AI Improve</button>
-            <button type="button" class="voice-btn" id="voice-btn" onclick="toggleVoice()">Voice Input</button>
+            <button type="button" class="voice-btn" id="voice-btn" onclick="toggleVoice()" data-lang="hi-IN">🎤 Hindi</button>
+            <button type="button" class="voice-btn" id="lang-toggle-btn" onclick="switchVoiceLang()" style="background:#0288d1">Switch to English</button>
           </div>
           <div id="improve-result" class="improve-result"></div>
         </div>
@@ -393,52 +394,54 @@ function applyImageAnalysis(title, category) {
 }
 
 // ══ VOICE INPUT ══
-// == VOICE INPUT ==
 function toggleVoice() {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    alert('Voice input is only available in Chrome!');
+    alert('Voice input sirf Chrome browser mein kaam karta hai!');
     return;
   }
-  if (isRecording) { recognition.stop(); return; }
-  
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.lang = 'hi-IN';  // Hindi + English dono support
+  if (isRecording) {
+    recognition.stop();
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
   recognition.continuous = false;
   recognition.interimResults = true;
-  
-  var btn = document.getElementById('voice-btn');
+
+  // Language toggle — Hindi ya English
+  const currentLang = document.getElementById('voice-btn').dataset.lang || 'hi-IN';
+  recognition.lang = currentLang;
+
+  const btn = document.getElementById('voice-btn');
   btn.classList.add('recording');
-  btn.textContent = '🔴 Recording...';
-  btn.style.color = 'red';
+  btn.textContent = currentLang === 'hi-IN' ? '🔴 Hindi...' : '🔴 English...';
   isRecording = true;
-  
-  recognition.onresult = function(event) {
-    var transcript = Array.from(event.results)
-      .map(function(r) { return r[0].transcript; })
-      .join('');
+
+  recognition.onresult = (event) => {
+    const transcript = Array.from(event.results)
+      .map(r => r[0].transcript).join('');
     document.getElementById('c-description').value = transcript;
   };
-  
-  recognition.onerror = function(event) {
-    console.error('Voice error:', event.error);
+
+  recognition.onend = () => {
     btn.classList.remove('recording');
-    btn.textContent = '🎤 Voice Input';
-    btn.style.color = '';
-    isRecording = false;
-    if (event.error === 'not-allowed') {
-      alert('Microphone permission denied! Browser settings mein allow karein.');
-    }
-  };
-  
-  recognition.onend = function() {
-    btn.classList.remove('recording');
-    btn.textContent = '🎤 Voice Input';
-    btn.style.color = '';
+    const lang = btn.dataset.lang || 'hi-IN';
+    btn.textContent = lang === 'hi-IN' ? '🎤 Hindi' : '🎤 English';
     isRecording = false;
   };
-  
+
   recognition.start();
+}
+
+function switchVoiceLang() {
+  const btn = document.getElementById('voice-btn');
+  const langBtn = document.getElementById('lang-toggle-btn');
+  const current = btn.dataset.lang || 'hi-IN';
+  const newLang = current === 'hi-IN' ? 'en-IN' : 'hi-IN';
+  btn.dataset.lang = newLang;
+  btn.textContent = newLang === 'hi-IN' ? '🎤 Hindi' : '🎤 English';
+  langBtn.textContent = newLang === 'hi-IN' ? 'Switch to English' : 'Switch to Hindi';
 }
 
 // ══ AI TITLE SUGGEST ══
